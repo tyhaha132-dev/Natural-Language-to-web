@@ -1,0 +1,24 @@
+{
+  "name": "web-coding-agent",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test:watch": "vitest",
+    "start": "tsx src/index.ts",
+    "check": "npm run typecheck && npm run test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "type": "module"
+}
