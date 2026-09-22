@@ -1,4 +1,6 @@
-﻿function readPositiveInteger(
+﻿import "dotenv/config";
+
+function readPositiveInteger(
   name: string,
   fallback: number
 ): number {
