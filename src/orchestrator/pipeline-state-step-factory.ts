@@ -6,6 +6,10 @@ import {
   StateTransitionStep,
 } from "./state-transition-step.js";
 
+import {
+  AnalysisStep,
+} from "./analysis-step.js";
+
 import type {
   PipelineStep,
 } from "./pipeline-step.js";
@@ -30,6 +34,15 @@ export function createPipelineStateSteps(): PipelineStep[] {
         nextState
       )
     );
+
+    if (
+      previousState === "STARTING" &&
+      nextState === "ANALYZING"
+    ) {
+      steps.push(
+        new AnalysisStep()
+      );
+    }
   }
 
   return steps;

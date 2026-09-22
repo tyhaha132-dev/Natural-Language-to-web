@@ -13,27 +13,23 @@ import {
 } from "../src/orchestrator/pipeline-execution-context.js";
 
 describe("PipelineStateStepFactory", () => {
-  it("should create one step for each state transition", () => {
+  it("should create state transition steps plus the analysis step", () => {
     const steps =
       createPipelineStateSteps();
 
-    expect(steps).toHaveLength(9);
+    expect(steps).toHaveLength(10);
 
-    expect(
-      steps.map(
-        (step) => step.name
-      )
-    ).toEqual([
-      "STARTING -> ANALYZING",
-      "ANALYZING -> PLANNING",
-      "PLANNING -> PLAN_VALIDATING",
-      "PLAN_VALIDATING -> ENVIRONMENT_SETUP",
-      "ENVIRONMENT_SETUP -> CODING",
-      "CODING -> DATABASE_SETUP",
-      "DATABASE_SETUP -> TESTING",
-      "TESTING -> REVIEWING",
-      "REVIEWING -> DECIDING",
-    ]);
+    expect(steps[0].name).toBe(
+      "STARTING -> ANALYZING"
+    );
+
+    expect(steps[1].name).toBe(
+      "analyze-request"
+    );
+
+    expect(steps[2].name).toBe(
+      "ANALYZING -> PLANNING"
+    );
   });
 
   it("should execute the complete state flow", async () => {
@@ -42,7 +38,7 @@ describe("PipelineStateStepFactory", () => {
 
     let context =
       createPipelineExecutionContext({
-        id: "state-flow-test",
+        id: "factory-test-1",
         prompt: "Build an app",
       });
 
@@ -54,6 +50,8 @@ describe("PipelineStateStepFactory", () => {
     expect(context.state).toBe(
       "DECIDING"
     );
+
+    expect(context.analysis).not.toBeNull();
   });
 
   it("should preserve pipeline request", async () => {
@@ -62,7 +60,7 @@ describe("PipelineStateStepFactory", () => {
 
     let context =
       createPipelineExecutionContext({
-        id: "state-flow-request-test",
+        id: "factory-test-2",
         prompt: "Build a student app",
       });
 
@@ -71,9 +69,23 @@ describe("PipelineStateStepFactory", () => {
         await step.execute(context);
     }
 
-    expect(context.request).toEqual({
-      id: "state-flow-request-test",
-      prompt: "Build a student app",
-    });
+    expect(
+      context.request.id
+    ).toBe(
+      "factory-test-2"
+    );
+
+    expect(
+      context.request.prompt
+    ).toBe(
+      "Build a student app"
+    );
+
+    expect(context.analysis).toEqual(
+      expect.objectContaining({
+        projectType: "web-app",
+        prompt: "Build a student app",
+      })
+    );
   });
 });

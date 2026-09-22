@@ -207,7 +207,7 @@ describe("DefaultPipelineOrchestrator", () => {
       "DECIDING"
     );
 
-    expect(events).toHaveLength(18);
+    expect(events).toHaveLength(20);
 
     expect(events[0]).toBe(
       "start:STARTING -> ANALYZING"
@@ -217,13 +217,9 @@ describe("DefaultPipelineOrchestrator", () => {
       "complete:STARTING -> ANALYZING"
     );
 
-    expect(events[16]).toBe(
-      "start:REVIEWING -> DECIDING"
-    );
+    expect(events[18]).toBe("start:REVIEWING -> DECIDING");
 
-    expect(events[17]).toBe(
-      "complete:REVIEWING -> DECIDING"
-    );
+    expect(events[19]).toBe("complete:REVIEWING -> DECIDING");
   });
 
   it("should notify the pipeline observer about lifecycle events", async () => {
@@ -348,3 +344,4 @@ describe("DefaultPipelineOrchestrator", () => {
     ]);
   });
 });
+

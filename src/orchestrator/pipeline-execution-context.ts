@@ -7,6 +7,7 @@
 export interface PipelineExecutionContext
   extends PipelineContext {
   workspace: string | null;
+  analysis: unknown | null;
   plan: unknown | null;
   testResult: unknown | null;
   reviewResult: unknown | null;
@@ -25,6 +26,7 @@ export function createPipelineExecutionContext(
     createdAt: now,
     updatedAt: now,
     workspace: null,
+    analysis: null,
     plan: null,
     testResult: null,
     reviewResult: null,

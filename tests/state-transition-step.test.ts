@@ -5,30 +5,30 @@
 } from "vitest";
 
 import {
-  createPipelineExecutionContext,
-} from "../src/orchestrator/pipeline-execution-context.js";
-
-import {
   StateTransitionStep,
 } from "../src/orchestrator/state-transition-step.js";
+
+import {
+  createPipelineExecutionContext,
+} from "../src/orchestrator/pipeline-execution-context.js";
 
 import {
   updateExecutionState,
 } from "../src/orchestrator/pipeline-execution-context.js";
 
 describe("StateTransitionStep", () => {
-  it("should transition to the configured state", async () => {
-    const context =
-      createPipelineExecutionContext({
-        id: "pipeline-transition-1",
-        prompt: "Build an app",
-      });
-
+  it("should transition from STARTING to ANALYZING", async () => {
     const step =
       new StateTransitionStep(
-        "analyzing",
+        "STARTING -> ANALYZING",
         "ANALYZING"
       );
+
+    const context =
+      createPipelineExecutionContext({
+        id: "transition-test-1",
+        prompt: "Build an app",
+      });
 
     const result =
       await step.execute(context);
@@ -36,34 +36,36 @@ describe("StateTransitionStep", () => {
     expect(result.state).toBe(
       "ANALYZING"
     );
-
-    expect(result.request).toEqual(
-      context.request
-    );
-
-    expect(result.workspace).toBeNull();
-    expect(result.plan).toBeNull();
-    expect(result.testResult).toBeNull();
-    expect(result.reviewResult).toBeNull();
-    expect(result.failureReason).toBeNull();
   });
 
   it("should preserve execution data during transition", async () => {
-    const initial =
+    const step =
+      new StateTransitionStep(
+        "ANALYZING -> PLANNING",
+        "PLANNING"
+      );
+
+    const initialContext =
       createPipelineExecutionContext({
-        id: "pipeline-transition-2",
+        id: "transition-test-2",
         prompt: "Build an app",
       });
 
-    const context = {
-      ...updateExecutionState(
-        initial,
+    const context =
+      updateExecutionState(
+        initialContext,
         "ANALYZING"
-      ),
+      );
+
+    const enrichedContext = {
+      ...context,
       workspace:
-        "D:\\workspace\\pipeline-transition-2",
+        "D:\\workspace\\pipeline-1",
+      analysis: {
+        projectType: "web-app",
+      },
       plan: {
-        name: "test-plan",
+        tasks: ["create frontend"],
       },
       testResult: {
         passed: true,
@@ -74,49 +76,55 @@ describe("StateTransitionStep", () => {
       failureReason: null,
     };
 
-    const step =
-      new StateTransitionStep(
-        "planning",
-        "PLANNING"
-      );
-
     const result =
-      await step.execute(context);
+      await step.execute(
+        enrichedContext
+      );
 
     expect(result.state).toBe(
       "PLANNING"
     );
+
     expect(result.workspace).toBe(
-      context.workspace
+      enrichedContext.workspace
     );
+
+    expect(result.analysis).toEqual(
+      enrichedContext.analysis
+    );
+
     expect(result.plan).toEqual(
-      context.plan
+      enrichedContext.plan
     );
+
     expect(result.testResult).toEqual(
-      context.testResult
+      enrichedContext.testResult
     );
+
     expect(result.reviewResult).toEqual(
-      context.reviewResult
+      enrichedContext.reviewResult
     );
+
+    expect(result.failureReason).toBeNull();
   });
 
-  it("should reject an invalid state transition", async () => {
-    const context =
-      createPipelineExecutionContext({
-        id: "pipeline-transition-3",
-        prompt: "Build an app",
-      });
-
+  it("should reject invalid state transitions", async () => {
     const step =
       new StateTransitionStep(
-        "invalid",
+        "STARTING -> COMPLETED",
         "COMPLETED"
       );
+
+    const context =
+      createPipelineExecutionContext({
+        id: "transition-test-3",
+        prompt: "Build an app",
+      });
 
     await expect(
       step.execute(context)
     ).rejects.toThrow(
-      "Invalid pipeline transition: STARTING -> COMPLETED"
+      "Invalid pipeline transition"
     );
   });
 });

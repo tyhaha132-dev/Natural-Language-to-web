@@ -41,6 +41,7 @@ export class StateTransitionStep
     return {
       ...transitioned,
       workspace: context.workspace,
+      analysis: context.analysis,
       plan: context.plan,
       testResult: context.testResult,
       reviewResult: context.reviewResult,
