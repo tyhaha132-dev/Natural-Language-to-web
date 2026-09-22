@@ -8,7 +8,8 @@ export type PipelineEvent =
   | "TEST_START"
   | "TEST_PASS"
   | "TEST_FAIL"
-  | "PIPELINE_COMPLETE";
+  | "PIPELINE_COMPLETE"
+  | "PIPELINE_FAILED";
 
 export const pipelineLogger = {
   event(
@@ -84,6 +85,16 @@ export const pipelineLogger = {
     this.event(
       "PIPELINE_COMPLETE",
       `Pipeline ${pipelineId} completed`
+    );
+  },
+
+  failed(
+    pipelineId: string,
+    reason: string
+  ): void {
+    this.event(
+      "PIPELINE_FAILED",
+      `Pipeline ${pipelineId} failed - ${reason}`
     );
   },
 };
