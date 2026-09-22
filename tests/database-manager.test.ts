@@ -51,6 +51,70 @@ describe("DatabaseManager", () => {
     await database.close();
   });
 
+  it("should commit a transaction", async () => {
+    const database = createDatabaseManager();
+
+    await database.connect();
+
+    await database.transaction(async (transaction) => {
+      await transaction.query(`
+        CREATE TEMP TABLE transaction_commit_test (
+          value INTEGER
+        )
+      `);
+
+      await transaction.query(
+        "INSERT INTO transaction_commit_test (value) VALUES ($1)",
+        [123]
+      );
+    });
+
+    const result = await database.query<{
+      value: number;
+    }>(
+      "SELECT value FROM transaction_commit_test"
+    );
+
+    expect(result.rows[0]?.value).toBe(123);
+
+    await database.close();
+  });
+
+  it("should rollback a failed transaction", async () => {
+    const database = createDatabaseManager();
+
+    await database.connect();
+
+    await database.query(`
+      CREATE TEMP TABLE transaction_rollback_test (
+        value INTEGER
+      )
+    `);
+
+    await expect(
+      database.transaction(async (transaction) => {
+        await transaction.query(
+          "INSERT INTO transaction_rollback_test (value) VALUES ($1)",
+          [456]
+        );
+
+        throw new Error("forced transaction failure");
+      })
+    ).rejects.toThrow(
+      "forced transaction failure"
+    );
+
+    const result = await database.query<{
+      count: string;
+    }>(
+      "SELECT COUNT(*)::text AS count FROM transaction_rollback_test"
+    );
+
+    expect(result.rows[0]?.count).toBe("0");
+
+    await database.close();
+  });
+
   it("should report database health", async () => {
     const database = createDatabaseManager();
 

@@ -5,12 +5,18 @@ import {
   type DatabaseHealthResult,
 } from "./database-health.js";
 
-export interface DatabaseManager {
-  connect(): Promise<void>;
+export interface DatabaseQuery {
   query<T extends pg.QueryResultRow = pg.QueryResultRow>(
     text: string,
     values?: unknown[]
   ): Promise<pg.QueryResult<T>>;
+}
+
+export interface DatabaseManager extends DatabaseQuery {
+  connect(): Promise<void>;
+  transaction<T>(
+    callback: (query: DatabaseQuery) => Promise<T>
+  ): Promise<T>;
   health(): Promise<DatabaseHealthResult>;
   close(): Promise<void>;
 }
@@ -26,6 +32,27 @@ export function createDatabaseManager(): DatabaseManager {
 
   let connected = false;
   let closed = false;
+
+  const query = async <
+    T extends pg.QueryResultRow = pg.QueryResultRow
+  >(
+    text: string,
+    values: unknown[] = []
+  ): Promise<pg.QueryResult<T>> => {
+    if (closed) {
+      throw new Error(
+        "DatabaseManager is closed"
+      );
+    }
+
+    if (!connected) {
+      throw new Error(
+        "DatabaseManager is not connected"
+      );
+    }
+
+    return pool.query<T>(text, values);
+  };
 
   return {
     async connect(): Promise<void> {
@@ -46,10 +73,13 @@ export function createDatabaseManager(): DatabaseManager {
       connected = true;
     },
 
-    async query<T extends pg.QueryResultRow = pg.QueryResultRow>(
-      text: string,
-      values: unknown[] = []
-    ): Promise<pg.QueryResult<T>> {
+    query,
+
+    async transaction<T>(
+      callback: (
+        transactionQuery: DatabaseQuery
+      ) => Promise<T>
+    ): Promise<T> {
       if (closed) {
         throw new Error(
           "DatabaseManager is closed"
@@ -62,7 +92,34 @@ export function createDatabaseManager(): DatabaseManager {
         );
       }
 
-      return pool.query<T>(text, values);
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const transactionQuery: DatabaseQuery = {
+          query: async <
+            R extends pg.QueryResultRow = pg.QueryResultRow
+          >(
+            text: string,
+            values: unknown[] = []
+          ): Promise<pg.QueryResult<R>> => {
+            return client.query<R>(text, values);
+          },
+        };
+
+        const result =
+          await callback(transactionQuery);
+
+        await client.query("COMMIT");
+
+        return result;
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
     },
 
     async health(): Promise<DatabaseHealthResult> {
