@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --exclude tests/integration/**",
+    "test:ai": "vitest run tests/integration",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test:watch": "vitest",
