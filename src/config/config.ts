@@ -49,6 +49,17 @@ export function loadConfig() {
       ),
     },
 
+    server: {
+      readinessTimeoutMs: readPositiveInteger(
+        "SERVER_READINESS_TIMEOUT_MS",
+        30_000
+      ),
+      readinessIntervalMs: readPositiveInteger(
+        "SERVER_READINESS_INTERVAL_MS",
+        250
+      ),
+    },
+
     postgres: {
       host: readString("POSTGRES_HOST", "localhost"),
       port: readPositiveInteger("POSTGRES_PORT", 5432),
