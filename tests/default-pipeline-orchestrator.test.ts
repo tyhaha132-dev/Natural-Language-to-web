@@ -1,4 +1,4 @@
-﻿import {
+import {
   describe,
   expect,
   it,
@@ -11,6 +11,107 @@ import {
 import type {
   PipelineStep,
 } from "../src/orchestrator/pipeline-step.js";
+
+import type {
+  DatabaseManager,
+} from "../src/infrastructure/database/database-manager.js";
+
+import type {
+  TestingService,
+} from "../src/testing/testing-service.js";
+
+import type {
+  TestPlan,
+} from "../src/testing/test-plan.js";
+
+function createMockDatabaseManager(): DatabaseManager {
+  return {
+    async connect(): Promise<void> {},
+
+    async query() {
+      return {
+        command: "SELECT",
+        rowCount: 1,
+        oid: 0,
+        rows: [],
+        fields: [],
+      };
+    },
+
+    async transaction<T>(
+      callback: (
+        query: {
+          query: DatabaseManager["query"];
+        }
+      ) => Promise<T>
+    ): Promise<T> {
+      return callback({
+        query: async () => ({
+          command: "SELECT",
+          rowCount: 1,
+          oid: 0,
+          rows: [],
+          fields: [],
+        }),
+      });
+    },
+
+    async health() {
+      return {
+        available: true,
+        host: "localhost",
+        port: 5432,
+        database: "testdb",
+        user: "postgres",
+        error: null,
+        durationMs: 1,
+      };
+    },
+
+    async close(): Promise<void> {},
+  };
+}
+
+function createMockTestingService(
+  calls: string[]
+): TestingService {
+  return {
+    async run(
+      workspace,
+      commands
+    ) {
+      calls.push(
+        `run:${workspace}:${commands.length}`
+      );
+
+      return {
+        status: "PASSED",
+        results: [
+          {
+            status: "PASSED",
+            command: "npm.cmd",
+            args: ["test"],
+            exitCode: 0,
+            stdout: "tests passed",
+            stderr: "",
+            durationMs: 1,
+          },
+        ],
+      };
+    },
+  };
+}
+
+function createMockTestPlan(): TestPlan {
+  return {
+    commands: [
+      {
+        command: "npm.cmd",
+        args: ["test"],
+      },
+    ],
+  };
+}
 
 describe("DefaultPipelineOrchestrator", () => {
   it("should execute the default pipeline state flow", async () => {
@@ -47,7 +148,7 @@ describe("DefaultPipelineOrchestrator", () => {
 
     expect(
       result.context.workspace
-    ).toBeNull();
+    ).not.toBeNull();
 
     expect(
       result.context.failureReason
@@ -207,7 +308,7 @@ describe("DefaultPipelineOrchestrator", () => {
       "DECIDING"
     );
 
-    expect(events).toHaveLength(20);
+    expect(events).toHaveLength(22);
 
     expect(events[0]).toBe(
       "start:STARTING -> ANALYZING"
@@ -217,9 +318,13 @@ describe("DefaultPipelineOrchestrator", () => {
       "complete:STARTING -> ANALYZING"
     );
 
-    expect(events[18]).toBe("start:REVIEWING -> DECIDING");
+    expect(events[20]).toBe(
+      "start:REVIEWING -> DECIDING"
+    );
 
-    expect(events[19]).toBe("complete:REVIEWING -> DECIDING");
+    expect(events[21]).toBe(
+      "complete:REVIEWING -> DECIDING"
+    );
   });
 
   it("should notify the pipeline observer about lifecycle events", async () => {
@@ -343,5 +448,195 @@ describe("DefaultPipelineOrchestrator", () => {
       "failure:FAILED:Pipeline step failed",
     ]);
   });
-});
 
+  it("should execute planning and coding when AgentService is provided", async () => {
+    const calls: string[] = [];
+
+    const agentService = {
+      async run(
+        role: "planner" | "coder" | "reviewer",
+        input: {
+          pipelineId: string;
+          prompt: string;
+          workspace: string;
+        }
+      ) {
+        calls.push(
+          `${role}:${input.pipelineId}`
+        );
+
+        if (role === "planner") {
+          return {
+            status: "SUCCESS" as const,
+            output: "TEST PLAN",
+            error: null,
+            durationMs: 0,
+          };
+        }
+
+        if (role === "coder") {
+          return {
+            status: "SUCCESS" as const,
+            output: "TEST CODE",
+            error: null,
+            durationMs: 0,
+          };
+        }
+
+        return {
+          status: "SUCCESS" as const,
+          output: "TEST REVIEW",
+          error: null,
+          durationMs: 0,
+        };
+      },
+    };
+
+    const orchestrator =
+      new DefaultPipelineOrchestrator({
+        agentService,
+      });
+
+    const result =
+      await orchestrator.execute({
+        id: "pipeline-planner-test",
+        prompt: "Build a student app",
+      });
+
+    expect(result.status).toBe(
+      "COMPLETED"
+    );
+
+    expect(calls).toEqual([
+      "planner:pipeline-planner-test",
+      "coder:pipeline-planner-test",
+      "reviewer:pipeline-planner-test",
+    ]);
+
+    expect(
+      result.context.plan
+    ).not.toBeNull();
+
+    expect(
+      result.context.plan?.plan
+    ).toBe(
+      "TEST PLAN"
+    );
+
+    expect(
+      result.context.codingResult
+    ).not.toBeNull();
+
+    expect(
+      result.context.codingResult?.output
+    ).toBe(
+      "TEST CODE"
+    );
+
+    expect(
+      result.context.reviewResult
+    ).not.toBeNull();
+
+    expect(
+      result.context.reviewResult?.output
+    ).toBe(
+      "TEST REVIEW"
+    );
+  });
+
+  it("should execute database setup when DatabaseManager is provided", async () => {
+    const databaseManager =
+      createMockDatabaseManager();
+
+    const orchestrator =
+      new DefaultPipelineOrchestrator({
+        databaseManager,
+      });
+
+    const result =
+      await orchestrator.execute({
+        id: "pipeline-database-test",
+        prompt: "Build a student app",
+      });
+
+    expect(result.status).toBe(
+      "COMPLETED"
+    );
+
+    expect(result.context.state).toBe(
+      "DECIDING"
+    );
+
+    expect(
+      result.context.databaseResult
+    ).not.toBeNull();
+
+    expect(
+      result.context.databaseResult?.available
+    ).toBe(true);
+
+    expect(
+      result.context.databaseResult?.host
+    ).toBe("localhost");
+
+    expect(
+      result.context.databaseResult?.port
+    ).toBe(5432);
+
+    expect(
+      result.context.databaseResult?.database
+    ).toBe("testdb");
+
+    expect(
+      result.context.databaseResult?.user
+    ).toBe("postgres");
+  });
+
+  it("should execute testing when TestingService and TestPlan are provided", async () => {
+    const calls: string[] = [];
+
+    const testingService =
+      createMockTestingService(calls);
+
+    const testPlan =
+      createMockTestPlan();
+
+    const orchestrator =
+      new DefaultPipelineOrchestrator({
+        testingService,
+        testPlan,
+      });
+
+    const result =
+      await orchestrator.execute({
+        id: "pipeline-testing-test",
+        prompt: "Build a student app",
+      });
+
+    expect(result.status).toBe(
+      "COMPLETED"
+    );
+
+    expect(result.context.state).toBe(
+      "DECIDING"
+    );
+
+    expect(calls).toHaveLength(1);
+
+    expect(calls[0]).toMatch(
+      /^run:.+:1$/
+    );
+
+    expect(
+      result.context.testResult
+    ).not.toBeNull();
+
+    expect(
+      result.context.testResult?.status
+    ).toBe("PASSED");
+
+    expect(
+      result.context.testResult?.results
+    ).toHaveLength(1);
+  });
+});

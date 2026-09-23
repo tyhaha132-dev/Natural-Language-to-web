@@ -1,16 +1,43 @@
-﻿import type {
+import type {
   PipelineContext,
   PipelineRequest,
   PipelineState,
 } from "../contracts/pipeline.js";
 
+import type {
+  PlanResult,
+} from "./plan-result.js";
+
+import type {
+  CodingResult,
+} from "./coding-result.js";
+
+import type {
+  DatabaseResult,
+} from "./database-result.js";
+
+import type {
+  TestingServiceResult,
+} from "../testing/testing-service.js";
+
+import type {
+  ReviewResult,
+} from "./review-result.js";
+
+import type {
+  DecisionResult,
+} from "./decision-result.js";
+
 export interface PipelineExecutionContext
   extends PipelineContext {
   workspace: string | null;
   analysis: unknown | null;
-  plan: unknown | null;
-  testResult: unknown | null;
-  reviewResult: unknown | null;
+  plan: PlanResult | null;
+  codingResult: CodingResult | null;
+  databaseResult: DatabaseResult | null;
+  testResult: TestingServiceResult | null;
+  reviewResult: ReviewResult | null;
+  decisionResult: DecisionResult | null;
   failureReason: string | null;
 }
 
@@ -28,8 +55,11 @@ export function createPipelineExecutionContext(
     workspace: null,
     analysis: null,
     plan: null,
+    codingResult: null,
+    databaseResult: null,
     testResult: null,
     reviewResult: null,
+    decisionResult: null,
     failureReason: null,
   };
 }

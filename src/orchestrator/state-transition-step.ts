@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   PipelineState,
 } from "../contracts/pipeline.js";
 
@@ -18,8 +18,8 @@ export class StateTransitionStep
   implements PipelineStep
 {
   readonly name: string;
-
-  private readonly nextState: PipelineState;
+  private readonly nextState:
+    PipelineState;
 
   constructor(
     name: string,
@@ -43,9 +43,18 @@ export class StateTransitionStep
       workspace: context.workspace,
       analysis: context.analysis,
       plan: context.plan,
-      testResult: context.testResult,
-      reviewResult: context.reviewResult,
-      failureReason: context.failureReason,
+      codingResult:
+        context.codingResult,
+      databaseResult:
+        context.databaseResult,
+      testResult:
+        context.testResult,
+      reviewResult:
+        context.reviewResult,
+      decisionResult:
+        context.decisionResult,
+      failureReason:
+        context.failureReason,
     };
   }
 }

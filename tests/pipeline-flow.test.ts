@@ -1,4 +1,4 @@
-﻿import {
+import {
   describe,
   expect,
   it,
@@ -13,9 +13,9 @@ describe("PIPELINE_FLOW", () => {
     expect(PIPELINE_FLOW).toEqual([
       "STARTING",
       "ANALYZING",
+      "ENVIRONMENT_SETUP",
       "PLANNING",
       "PLAN_VALIDATING",
-      "ENVIRONMENT_SETUP",
       "CODING",
       "DATABASE_SETUP",
       "TESTING",

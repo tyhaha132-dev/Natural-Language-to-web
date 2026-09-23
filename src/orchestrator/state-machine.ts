@@ -1,16 +1,65 @@
-﻿import type { PipelineState } from "../contracts/pipeline.js";
+﻿import type {
+  PipelineState,
+} from "../contracts/pipeline.js";
 
-const TRANSITIONS: Record<PipelineState, readonly PipelineState[]> = {
-  STARTING: ["ANALYZING", "FAILED"],
-  ANALYZING: ["PLANNING", "FAILED"],
-  PLANNING: ["PLAN_VALIDATING", "FAILED"],
-  PLAN_VALIDATING: ["ENVIRONMENT_SETUP", "FAILED"],
-  ENVIRONMENT_SETUP: ["CODING", "FAILED"],
-  CODING: ["DATABASE_SETUP", "TESTING", "FAILED"],
-  DATABASE_SETUP: ["TESTING", "FAILED"],
-  TESTING: ["CODING", "REVIEWING", "FAILED"],
-  REVIEWING: ["CODING", "DECIDING", "FAILED"],
-  DECIDING: ["COMPLETED", "CODING", "FAILED"],
+const TRANSITIONS: Record<
+  PipelineState,
+  readonly PipelineState[]
+> = {
+  STARTING: [
+    "ANALYZING",
+    "FAILED",
+  ],
+
+  ANALYZING: [
+    "ENVIRONMENT_SETUP",
+    "FAILED",
+  ],
+
+  ENVIRONMENT_SETUP: [
+    "PLANNING",
+    "FAILED",
+  ],
+
+  PLANNING: [
+    "PLAN_VALIDATING",
+    "FAILED",
+  ],
+
+  PLAN_VALIDATING: [
+    "CODING",
+    "FAILED",
+  ],
+
+  CODING: [
+    "DATABASE_SETUP",
+    "TESTING",
+    "FAILED",
+  ],
+
+  DATABASE_SETUP: [
+    "TESTING",
+    "FAILED",
+  ],
+
+  TESTING: [
+    "CODING",
+    "REVIEWING",
+    "FAILED",
+  ],
+
+  REVIEWING: [
+    "CODING",
+    "DECIDING",
+    "FAILED",
+  ],
+
+  DECIDING: [
+    "COMPLETED",
+    "CODING",
+    "FAILED",
+  ],
+
   COMPLETED: [],
   FAILED: [],
 };

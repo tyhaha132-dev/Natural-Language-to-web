@@ -1,4 +1,4 @@
-﻿import {
+import {
   describe,
   expect,
   it,
@@ -10,14 +10,11 @@ import {
 
 import {
   createPipelineExecutionContext,
-} from "../src/orchestrator/pipeline-execution-context.js";
-
-import {
   updateExecutionState,
 } from "../src/orchestrator/pipeline-execution-context.js";
 
 describe("StateTransitionStep", () => {
-  it("should transition from STARTING to ANALYZING", async () => {
+  it("should transition pipeline state", async () => {
     const step =
       new StateTransitionStep(
         "STARTING -> ANALYZING",
@@ -38,11 +35,11 @@ describe("StateTransitionStep", () => {
     );
   });
 
-  it("should preserve execution data during transition", async () => {
+  it("should preserve execution data", async () => {
     const step =
       new StateTransitionStep(
-        "ANALYZING -> PLANNING",
-        "PLANNING"
+        "ANALYZING -> ENVIRONMENT_SETUP",
+        "ENVIRONMENT_SETUP"
       );
 
     const initialContext =
@@ -59,19 +56,42 @@ describe("StateTransitionStep", () => {
 
     const enrichedContext = {
       ...context,
-      workspace:
-        "D:\\workspace\\pipeline-1",
+      workspace: "test-workspace",
       analysis: {
         projectType: "web-app",
       },
       plan: {
-        tasks: ["create frontend"],
+        prompt: "Build an app",
+        plan: "task-1",
+        plannedAt:
+          "2026-09-22T00:00:00.000Z",
       },
       testResult: {
-        passed: true,
+        status: "PASSED" as const,
+        results: [
+          {
+            status: "PASSED" as const,
+            command: "npm.cmd",
+            args: ["test"],
+            exitCode: 0,
+            stdout: "tests passed",
+            stderr: "",
+            durationMs: 10,
+          },
+        ],
       },
       reviewResult: {
-        approved: true,
+        status: "APPROVED" as const,
+        output: "Review passed",
+        issues: [],
+        reviewedAt:
+          "2026-09-22T00:00:00.000Z",
+      },
+      decisionResult: {
+        decision: "COMPLETE" as const,
+        reason: "Tests passed and review approved",
+        decidedAt:
+          "2026-09-22T00:00:00.000Z",
       },
       failureReason: null,
     };
@@ -82,37 +102,62 @@ describe("StateTransitionStep", () => {
       );
 
     expect(result.state).toBe(
-      "PLANNING"
+      "ENVIRONMENT_SETUP"
     );
 
     expect(result.workspace).toBe(
-      enrichedContext.workspace
+      "test-workspace"
     );
 
-    expect(result.analysis).toEqual(
-      enrichedContext.analysis
-    );
+    expect(result.analysis).toEqual({
+      projectType: "web-app",
+    });
 
-    expect(result.plan).toEqual(
-      enrichedContext.plan
-    );
+    expect(result.plan).toEqual({
+      prompt: "Build an app",
+      plan: "task-1",
+      plannedAt:
+        "2026-09-22T00:00:00.000Z",
+    });
 
-    expect(result.testResult).toEqual(
-      enrichedContext.testResult
-    );
+    expect(result.testResult).toEqual({
+      status: "PASSED",
+      results: [
+        {
+          status: "PASSED",
+          command: "npm.cmd",
+          args: ["test"],
+          exitCode: 0,
+          stdout: "tests passed",
+          stderr: "",
+          durationMs: 10,
+        },
+      ],
+    });
 
-    expect(result.reviewResult).toEqual(
-      enrichedContext.reviewResult
-    );
+    expect(result.reviewResult).toEqual({
+      status: "APPROVED",
+      output: "Review passed",
+      issues: [],
+      reviewedAt:
+        "2026-09-22T00:00:00.000Z",
+    });
+
+    expect(result.decisionResult).toEqual({
+      decision: "COMPLETE",
+      reason: "Tests passed and review approved",
+      decidedAt:
+        "2026-09-22T00:00:00.000Z",
+    });
 
     expect(result.failureReason).toBeNull();
   });
 
-  it("should reject invalid state transitions", async () => {
+  it("should reject an invalid transition", async () => {
     const step =
       new StateTransitionStep(
-        "STARTING -> COMPLETED",
-        "COMPLETED"
+        "STARTING -> PLANNING",
+        "PLANNING"
       );
 
     const context =
@@ -124,7 +169,7 @@ describe("StateTransitionStep", () => {
     await expect(
       step.execute(context)
     ).rejects.toThrow(
-      "Invalid pipeline transition"
+      "Invalid pipeline transition: STARTING -> PLANNING"
     );
   });
 });

@@ -5,9 +5,9 @@
 export const PIPELINE_FLOW: readonly PipelineState[] = [
   "STARTING",
   "ANALYZING",
+  "ENVIRONMENT_SETUP",
   "PLANNING",
   "PLAN_VALIDATING",
-  "ENVIRONMENT_SETUP",
   "CODING",
   "DATABASE_SETUP",
   "TESTING",
