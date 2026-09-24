@@ -14,25 +14,30 @@ export interface OpenCodeOptions {
 export async function runOpenCode(
   options: OpenCodeOptions
 ): Promise<ProcessResult> {
-  const executable = await resolveOpenCodeExecutable();
+  const executable =
+    await resolveOpenCodeExecutable();
 
-  const command = buildCommand(
-    executable,
-    [
-      "run",
-      "--model",
-      options.model,
-      options.prompt,
-    ]
-  );
+  const command =
+    buildCommand(
+      executable,
+      [
+        "run",
+        "--auto",
+        "--model",
+        options.model,
+        options.prompt,
+      ]
+    );
 
   return runProcess(
     command.command,
     command.args,
     {
       cwd: options.cwd,
-      timeoutMs: options.timeoutMs,
-      env: options.env,
+      timeoutMs:
+        options.timeoutMs,
+      env:
+        options.env,
     }
   );
 }

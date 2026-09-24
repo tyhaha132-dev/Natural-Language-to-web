@@ -25,7 +25,7 @@ describe(
   "NodeApplicationServer",
   () => {
     it(
-      "starts, becomes ready, and stops a Node application",
+      "starts, passes the configured PORT to the Node application, becomes ready, and stops",
       async () => {
         const workspace =
           await mkdtemp(
@@ -52,7 +52,13 @@ describe(
                 require("node:http");
 
               const port =
-                Number(process.argv[2]);
+                Number(process.env.PORT);
+
+              if (!Number.isInteger(port)) {
+                throw new Error(
+                  "PORT environment variable is missing or invalid"
+                );
+              }
 
               const server =
                 http.createServer(
@@ -88,7 +94,6 @@ describe(
                 process.execPath,
               args: [
                 serverFile,
-                String(port),
               ],
             },
           };

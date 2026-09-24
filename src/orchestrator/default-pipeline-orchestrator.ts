@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   PipelineRequest,
 } from "../contracts/pipeline.js";
 
@@ -17,6 +17,10 @@ import type {
 import type {
   TestingService,
 } from "../testing/testing-service.js";
+
+import type {
+  ApplicationTestingService,
+} from "../testing/application-testing-service.js";
 
 import type {
   TestPlan,
@@ -71,15 +75,28 @@ import type {
 
 export interface DefaultPipelineOrchestratorOptions {
   steps?: readonly PipelineStep[];
+
   stepRunner?: PipelineStepRunner;
+
   observer?: PipelineStepObserver;
+
   pipelineObserver?: PipelineObserver;
+
   agentService?: AgentService;
+
   planValidator?: PlanValidator;
+
   databaseManager?: DatabaseManager;
+
   testingService?: TestingService;
+
+  applicationTestingService?:
+    ApplicationTestingService;
+
   testPlan?: TestPlan;
+
   decisionEngine?: DecisionEngine;
+
   iterationManager?: IterationManager;
 }
 
@@ -118,6 +135,9 @@ export class DefaultPipelineOrchestrator
 
         testingService:
           options.testingService,
+
+        applicationTestingService:
+          options.applicationTestingService,
 
         testPlan:
           options.testPlan,
@@ -239,10 +259,10 @@ export class DefaultPipelineOrchestrator
          *      ?
          * DECIDING
          *
-         * The reviewer is an AI-based quality check.
-         * When deterministic tests already fail, there is
-         * no value in spending another reviewer call before
-         * the DecisionEngine decides whether to retry.
+         * ApplicationTestingStep intentionally uses
+         * the same "run-tests" step name as the legacy
+         * TestingStep, so both testing implementations
+         * follow the same deterministic retry path.
          */
         if (
           step.name === "run-tests" &&
@@ -262,7 +282,9 @@ export class DefaultPipelineOrchestrator
             );
           }
 
-          stepIndex = decisionIndex;
+          stepIndex =
+            decisionIndex;
+
           continue;
         }
 
@@ -287,7 +309,10 @@ export class DefaultPipelineOrchestrator
 
             context = {
               ...context,
-              state: "COMPLETED",
+
+              state:
+                "COMPLETED",
+
               updatedAt:
                 new Date().toISOString(),
             };
@@ -317,15 +342,31 @@ export class DefaultPipelineOrchestrator
 
           context = {
             ...context,
-            state: "CODING",
+
+            state:
+              "CODING",
+
             iteration:
               nextIteration,
-            codingResult: null,
-            databaseResult: null,
-            testResult: null,
-            reviewResult: null,
-            decisionResult: null,
-            failureReason: null,
+
+            codingResult:
+              null,
+
+            databaseResult:
+              null,
+
+            testResult:
+              null,
+
+            reviewResult:
+              null,
+
+            decisionResult:
+              null,
+
+            failureReason:
+              null,
+
             updatedAt:
               new Date().toISOString(),
           };
@@ -348,7 +389,9 @@ export class DefaultPipelineOrchestrator
             );
           }
 
-          stepIndex = codingIndex;
+          stepIndex =
+            codingIndex;
+
           continue;
         }
 
@@ -360,8 +403,11 @@ export class DefaultPipelineOrchestrator
       );
 
       return {
-        status: "COMPLETED",
+        status:
+          "COMPLETED",
+
         context,
+
         durationMs:
           Date.now() - startTime,
       };
@@ -374,8 +420,12 @@ export class DefaultPipelineOrchestrator
       const failedContext:
         PipelineExecutionContext = {
         ...context,
-        state: "FAILED",
+
+        state:
+          "FAILED",
+
         failureReason,
+
         updatedAt:
           new Date().toISOString(),
       };
@@ -386,8 +436,12 @@ export class DefaultPipelineOrchestrator
       );
 
       return {
-        status: "FAILED",
-        context: failedContext,
+        status:
+          "FAILED",
+
+        context:
+          failedContext,
+
         durationMs:
           Date.now() - startTime,
       };

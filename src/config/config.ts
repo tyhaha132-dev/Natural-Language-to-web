@@ -36,13 +36,17 @@ function readString(
 
 export function loadConfig() {
   return {
-    nodeEnv: readString("NODE_ENV", "development"),
+    nodeEnv: readString(
+      "NODE_ENV",
+      "development"
+    ),
 
     pipeline: {
       maxIterations: readPositiveInteger(
         "PIPELINE_MAX_ITERATIONS",
         5
       ),
+
       processTimeoutMs: readPositiveInteger(
         "PROCESS_TIMEOUT_MS",
         600_000
@@ -50,10 +54,16 @@ export function loadConfig() {
     },
 
     server: {
+      applicationPort: readPositiveInteger(
+        "APPLICATION_PORT",
+        43130
+      ),
+
       readinessTimeoutMs: readPositiveInteger(
         "SERVER_READINESS_TIMEOUT_MS",
         30_000
       ),
+
       readinessIntervalMs: readPositiveInteger(
         "SERVER_READINESS_INTERVAL_MS",
         250
@@ -61,10 +71,26 @@ export function loadConfig() {
     },
 
     postgres: {
-      host: readString("POSTGRES_HOST", "localhost"),
-      port: readPositiveInteger("POSTGRES_PORT", 5432),
-      user: readString("POSTGRES_USER", "postgres"),
-      password: readString("POSTGRES_PASSWORD", ""),
+      host: readString(
+        "POSTGRES_HOST",
+        "localhost"
+      ),
+
+      port: readPositiveInteger(
+        "POSTGRES_PORT",
+        5432
+      ),
+
+      user: readString(
+        "POSTGRES_USER",
+        "postgres"
+      ),
+
+      password: readString(
+        "POSTGRES_PASSWORD",
+        ""
+      ),
+
       database: readString(
         "POSTGRES_DB",
         "web_coding_agent"
@@ -73,4 +99,5 @@ export function loadConfig() {
   } as const;
 }
 
-export const CONFIG = loadConfig();
+export const CONFIG =
+  loadConfig();

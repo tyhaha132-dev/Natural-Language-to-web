@@ -14,6 +14,15 @@ import type {
   PipelineStep,
 } from "./pipeline-step.js";
 
+const CODING_RUNTIME_CONTRACT = [
+  "Runtime requirements:",
+  "- If you create a Node.js HTTP application, the server port MUST be read from process.env.PORT.",
+  "- Do NOT hard-code the server port.",
+  "- The application must listen on the port provided through process.env.PORT.",
+  "- A local-development fallback port is allowed only when process.env.PORT is not set.",
+  "- The application must expose an HTTP entrypoint that can be checked by the pipeline.",
+].join("\n");
+
 export class CodingStep
   implements PipelineStep
 {
@@ -50,6 +59,8 @@ export class CodingStep
       "",
       "Validated implementation plan:",
       context.plan.plan,
+      "",
+      CODING_RUNTIME_CONTRACT,
     ].join("\n");
 
     const result =

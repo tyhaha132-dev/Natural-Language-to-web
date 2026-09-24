@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AgentService,
 } from "../agents/agent-service.js";
 
@@ -13,6 +13,10 @@ import type {
 import type {
   TestingService,
 } from "../testing/testing-service.js";
+
+import type {
+  ApplicationTestingService,
+} from "../testing/application-testing-service.js";
 
 import type {
   TestPlan,
@@ -59,6 +63,10 @@ import {
 } from "./testing-step.js";
 
 import {
+  ApplicationTestingStep,
+} from "./application-testing-step.js";
+
+import {
   ReviewStep,
 } from "./review-step.js";
 
@@ -72,10 +80,18 @@ import type {
 
 export interface PipelineStateStepFactoryOptions {
   agentService?: AgentService;
+
   planValidator?: PlanValidator;
+
   databaseManager?: DatabaseManager;
+
   testingService?: TestingService;
+
+  applicationTestingService?:
+    ApplicationTestingService;
+
   testPlan?: TestPlan;
+
   decisionEngine?: DecisionEngine;
 }
 
@@ -173,13 +189,31 @@ export function createPipelineStateSteps(
       nextState === "REVIEWING"
     ) {
       if (
-        options.testingService !== undefined &&
-        options.testPlan !== undefined
+        options.applicationTestingService !==
+        undefined &&
+        options.testPlan !==
+        undefined
+      ) {
+        steps.push(
+          new ApplicationTestingStep({
+            applicationTestingService:
+              options.applicationTestingService,
+
+            testPlan:
+              options.testPlan,
+          })
+        );
+      } else if (
+        options.testingService !==
+        undefined &&
+        options.testPlan !==
+        undefined
       ) {
         steps.push(
           new TestingStep({
             testingService:
               options.testingService,
+
             testPlan:
               options.testPlan,
           })
@@ -187,7 +221,8 @@ export function createPipelineStateSteps(
       }
 
       if (
-        options.agentService !== undefined
+        options.agentService !==
+        undefined
       ) {
         steps.push(
           new ReviewStep({
@@ -200,7 +235,8 @@ export function createPipelineStateSteps(
   }
 
   if (
-    options.decisionEngine !== undefined
+    options.decisionEngine !==
+    undefined
   ) {
     steps.push(
       new DecisionStep({

@@ -14,11 +14,17 @@ import {
 
 import {
   workspaceExists,
+  getWorkspaceDirectory,
 } from "../src/workspace/workspace-manager.js";
 
+import {
+  promises as fs,
+} from "node:fs";
+
 describe("EnvironmentSetupStep", () => {
-  it("should create and assign a pipeline workspace", async () => {
-    const pipelineId = "environment-test-1";
+  it("should create workspace and initialize git repository", async () => {
+    const pipelineId =
+      "environment-test-1";
 
     const step =
       new EnvironmentSetupStep();
@@ -33,6 +39,7 @@ describe("EnvironmentSetupStep", () => {
       await step.execute(context);
 
     expect(result.workspace).not.toBeNull();
+
     expect(result.workspace).toContain(
       pipelineId
     );
@@ -40,5 +47,13 @@ describe("EnvironmentSetupStep", () => {
     expect(
       await workspaceExists(pipelineId)
     ).toBe(true);
+
+    const gitDirectory =
+      `${getWorkspaceDirectory(pipelineId)}/.git`;
+
+    const gitStats =
+      await fs.stat(gitDirectory);
+
+    expect(gitStats.isDirectory()).toBe(true);
   });
 });

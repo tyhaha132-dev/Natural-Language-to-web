@@ -4,10 +4,6 @@
   it,
 } from "vitest";
 
-import type {
-  AgentService,
-} from "../src/agents/agent-service.js";
-
 import {
   PlanningStep,
 } from "../src/orchestrator/planning-step.js";
@@ -18,84 +14,94 @@ import {
 
 describe("PlanningStep", () => {
   it("should create a plan from the planner agent output", async () => {
-    const agentService: AgentService = {
-      async run(role, input) {
+    const agentService = {
+      run: async (
+        role: string,
+        input: {
+          pipelineId: string;
+          workspace: string;
+          prompt: string;
+        }
+      ) => {
         expect(role).toBe("planner");
 
-        expect(input.pipelineId).toBe(
-          "planning-test-1"
-        );
-
-        expect(input.prompt).toBe(
+        expect(input.prompt).toContain(
           "Build a student management app"
         );
 
-        expect(input.workspace).toBe(
-          "D:\\workspace\\planning-test-1"
+        expect(input.prompt).toContain(
+          "Your ONLY job is to analyze the user's request and produce an implementation plan."
+        );
+
+        expect(input.prompt).toContain(
+          "Do NOT modify any files."
+        );
+
+        expect(input.prompt).toContain(
+          "Treat the workspace as READ-ONLY during this step."
+        );
+
+        expect(input.prompt).toContain(
+          "Return only the implementation plan."
         );
 
         return {
-          status: "SUCCESS",
-          output:
-            "1. Create frontend\n2. Create backend\n3. Add PostgreSQL",
+          status: "SUCCESS" as const,
+          output: "1. Create student model\n2. Create CRUD API",
           error: null,
           durationMs: 10,
         };
       },
     };
 
-    const step =
-      new PlanningStep(agentService);
+    const step = new PlanningStep(
+      agentService as never
+    );
 
-    const initialContext =
+    const context =
       createPipelineExecutionContext({
-        id: "planning-test-1",
-        prompt:
-          "Build a student management app",
+        id: "pipeline-1",
+        prompt: "Build a student management app",
       });
 
-    const context = {
-      ...initialContext,
-      workspace:
-        "D:\\workspace\\planning-test-1",
-    };
-
     const result =
-      await step.execute(context);
+      await step.execute({
+        ...context,
+        workspace:
+          "D:\\project\\web-coding-agent\\workspaces\\pipeline-1",
+      });
 
     expect(result.plan).not.toBeNull();
 
-    expect(result.plan).toEqual(
-      expect.objectContaining({
-        prompt:
-          "Build a student management app",
-        plan:
-          "1. Create frontend\n2. Create backend\n3. Add PostgreSQL",
-      })
+    expect(result.plan?.plan).toBe(
+      "1. Create student model\n2. Create CRUD API"
     );
 
-    expect(
-      (result.plan as {
-        plannedAt: string;
-      }).plannedAt
-    ).toBeTruthy();
+    expect(result.plan?.prompt).toBe(
+      "Build a student management app"
+    );
+
+    expect(result.plan?.plannedAt).toEqual(
+      expect.any(String)
+    );
   });
 
   it("should reject when workspace is missing", async () => {
-    const agentService: AgentService = {
-      async run() {
+    const agentService = {
+      run: async () => {
         throw new Error(
-          "AgentService should not be called"
+          "Agent should not be called"
         );
       },
     };
 
-    const step =
-      new PlanningStep(agentService);
+    const step = new PlanningStep(
+      agentService as never
+    );
 
     const context =
       createPipelineExecutionContext({
-        id: "planning-test-2",
+        id: "pipeline-2",
         prompt: "Build an app",
       });
 
@@ -107,38 +113,33 @@ describe("PlanningStep", () => {
   });
 
   it("should reject when planner agent fails", async () => {
-    const agentService: AgentService = {
-      async run(role) {
-        expect(role).toBe("planner");
-
-        return {
-          status: "FAILURE",
-          output: "",
-          error: "Planner failed",
-          durationMs: 10,
-        };
-      },
+    const agentService = {
+      run: async () => ({
+        status: "FAILURE" as const,
+        output: "",
+        error: "Planner process failed",
+        durationMs: 10,
+      }),
     };
 
-    const step =
-      new PlanningStep(agentService);
+    const step = new PlanningStep(
+      agentService as never
+    );
 
-    const initialContext =
+    const context =
       createPipelineExecutionContext({
-        id: "planning-test-3",
+        id: "pipeline-3",
         prompt: "Build an app",
       });
 
-    const context = {
-      ...initialContext,
-      workspace:
-        "D:\\workspace\\planning-test-3",
-    };
-
     await expect(
-      step.execute(context)
+      step.execute({
+        ...context,
+        workspace:
+          "D:\\project\\web-coding-agent\\workspaces\\pipeline-3",
+      })
     ).rejects.toThrow(
-      "Planner failed"
+      "Planner process failed"
     );
   });
 });

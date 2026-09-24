@@ -2,6 +2,7 @@
 import { runProcess } from "../runtime/process-runner.js";
 
 export interface GitManager {
+  init(): Promise<ProcessResult>;
   status(): Promise<ProcessResult>;
   diff(): Promise<ProcessResult>;
   stage(paths: readonly string[]): Promise<ProcessResult>;
@@ -24,6 +25,12 @@ export function createGitManager(
   };
 
   return {
+    init(): Promise<ProcessResult> {
+      return runGit([
+        "init",
+      ]);
+    },
+
     status(): Promise<ProcessResult> {
       return runGit([
         "status",

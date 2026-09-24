@@ -1,4 +1,4 @@
-﻿import {
+import {
   describe,
   expect,
   it,
@@ -92,6 +92,30 @@ describe("CodingStep", () => {
       receivedPrompt
     ).toContain(
       "Build React frontend and Node backend"
+    );
+
+    expect(
+      receivedPrompt
+    ).toContain(
+      "Runtime requirements:"
+    );
+
+    expect(
+      receivedPrompt
+    ).toContain(
+      "If you create a Node.js HTTP application, the server port MUST be read from process.env.PORT."
+    );
+
+    expect(
+      receivedPrompt
+    ).toContain(
+      "Do NOT hard-code the server port."
+    );
+
+    expect(
+      receivedPrompt
+    ).toContain(
+      "The application must listen on the port provided through process.env.PORT."
     );
 
     expect(

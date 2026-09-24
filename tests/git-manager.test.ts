@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const { runProcessMock } = vi.hoisted(() => ({
   runProcessMock: vi.fn(),
@@ -11,6 +11,32 @@ vi.mock("../src/runtime/process-runner.js", () => ({
 import { createGitManager } from "../src/git/git-manager.js";
 
 describe("GitManager", () => {
+  it("should initialize a git repository inside the workspace", async () => {
+    runProcessMock.mockResolvedValue({
+      command: "git",
+      args: ["init"],
+      exitCode: 0,
+      stdout: "Initialized empty Git repository",
+      stderr: "",
+      timedOut: false,
+      durationMs: 10,
+    });
+
+    const git = createGitManager(workspace);
+
+    const result = await git.init();
+
+    expect(runProcessMock).toHaveBeenCalledWith(
+      "git",
+      ["init"],
+      {
+        cwd: workspace,
+      }
+    );
+
+    expect(result.exitCode).toBe(0);
+  });
+
   const workspace = "D:\\workspace\\test";
 
   it("should run git status inside the workspace", async () => {

@@ -57,11 +57,17 @@ export function createNodeApplicationServer(
         );
       }
 
+      const environment: NodeJS.ProcessEnv = {
+        ...process.env,
+        ...options.env,
+        PORT: String(options.port),
+      };
+
       server =
         manager.start(
           options.runtime.startCommand,
           options.runtime.workspace,
-          options.env
+          environment
         );
 
       const readiness:

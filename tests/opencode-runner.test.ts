@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const { runProcessMock, resolveOpenCodeExecutableMock } =
   vi.hoisted(() => ({
@@ -21,7 +21,7 @@ describe("OpenCodeRunner", () => {
   const executable =
     "C:\\OpenCode\\opencode.exe";
 
-  it("should run OpenCode with the requested model and prompt", async () => {
+  it("should run OpenCode with auto approval, requested model and prompt", async () => {
     resolveOpenCodeExecutableMock.mockResolvedValue(
       executable
     );
@@ -30,6 +30,7 @@ describe("OpenCodeRunner", () => {
       command: executable,
       args: [
         "run",
+        "--auto",
         "--model",
         "opencode/test-model",
         "hello world",
@@ -54,6 +55,7 @@ describe("OpenCodeRunner", () => {
       executable,
       [
         "run",
+        "--auto",
         "--model",
         "opencode/test-model",
         "hello world",
@@ -78,6 +80,7 @@ describe("OpenCodeRunner", () => {
       command: executable,
       args: [
         "run",
+        "--auto",
         "--model",
         "opencode/test-model",
         "build app",
@@ -105,6 +108,7 @@ describe("OpenCodeRunner", () => {
       executable,
       [
         "run",
+        "--auto",
         "--model",
         "opencode/test-model",
         "build app",
@@ -126,6 +130,7 @@ describe("OpenCodeRunner", () => {
       command: executable,
       args: [
         "run",
+        "--auto",
         "--model",
         "opencode/test-model",
         "test",
