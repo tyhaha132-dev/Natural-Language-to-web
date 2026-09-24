@@ -21,6 +21,14 @@ const CODING_RUNTIME_CONTRACT = [
   "- The application must listen on the port provided through process.env.PORT.",
   "- A local-development fallback port is allowed only when process.env.PORT is not set.",
   "- The application must expose an HTTP entrypoint that can be checked by the pipeline.",
+  "",
+  "Agent environment and safety constraints:",
+  "- The workspace runs on Windows with PowerShell. Use PowerShell-compatible commands only.",
+  "- Do NOT use Linux shell syntax: VAR=value prefixes, & backgrounding, pkill, kill, curl, sleep, or %JOB% references.",
+  "- NEVER stop or kill processes by name (Stop-Process without -Id, taskkill /IM, pkill, killall).",
+  "- Killing processes by name can terminate the pipeline that invoked you and will fail the run.",
+  "- If you start a background server for self-verification, stop ONLY that process by its PID and verify the port is free afterwards.",
+  "- Broad process or port cleanup is handled by the pipeline; prefer leaving servers stopped over aggressive cleanup commands.",
 ].join("\n");
 
 export class CodingStep

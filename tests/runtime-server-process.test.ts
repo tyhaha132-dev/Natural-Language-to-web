@@ -2,7 +2,33 @@
 
 import {
   startServerProcess,
+  type ServerProcess,
 } from "../src/runtime/server-process.js";
+
+async function waitForOutput(
+  server: ServerProcess,
+  stdoutText: string,
+  stderrText: string,
+  timeoutMs: number
+): Promise<void> {
+  const startTime = Date.now();
+
+  while (
+    (!server.stdout.includes(
+      stdoutText
+    ) ||
+      !server.stderr.includes(
+        stderrText
+      )) &&
+    Date.now() - startTime <
+      timeoutMs
+  ) {
+    await new Promise(
+      (resolve) =>
+        setTimeout(resolve, 50)
+    );
+  }
+}
 
 describe(
   "ServerProcess",
@@ -24,9 +50,11 @@ describe(
             }
           );
 
-        await new Promise(
-          (resolve) =>
-            setTimeout(resolve, 100)
+        await waitForOutput(
+          server,
+          "SERVER_READY",
+          "SERVER_ERROR",
+          3_000
         );
 
         expect(
