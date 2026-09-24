@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test:watch": "vitest",
     "start": "tsx src/index.ts",
+    "agent": "tsx src/index.ts",
     "check": "npm run typecheck && npm run test"
   },
   "keywords": [],
