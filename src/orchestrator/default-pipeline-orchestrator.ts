@@ -100,10 +100,133 @@ export interface DefaultPipelineOrchestratorOptions {
   iterationManager?: IterationManager;
 }
 
+const MAX_RETRY_FEEDBACK_CHARS = 6000;
+
+const MAX_FEEDBACK_SECTION_CHARS = 3000;
+
+function tail(
+  text: string,
+  maxChars: number
+): string {
+  if (text.length <= maxChars) {
+    return text;
+  }
+
+  return (
+    "...[truncated]...\n" +
+    text.slice(-maxChars)
+  );
+}
+
+function buildRetryFeedback(
+  context: PipelineExecutionContext
+): string | null {
+  const sections: string[] = [];
+
+  const testResult =
+    context.testResult;
+
+  if (
+    testResult !== null &&
+    testResult.status === "FAILED"
+  ) {
+    const failures =
+      testResult.results
+        .filter(
+          (result) =>
+            result.status !==
+            "PASSED"
+        )
+        .map((result) => {
+          const command = [
+            result.command,
+            ...result.args,
+          ].join(" ");
+
+          const output = tail(
+            [
+              result.stderr,
+              result.stdout,
+            ]
+              .filter(
+                (part) =>
+                  part.trim().length >
+                  0
+              )
+              .join("\n"),
+            1500
+          );
+
+          return [
+            `Failing test command: ${command}`,
+            `Exit code: ${result.exitCode ?? "unknown"}`,
+            `Output:\n${output}`,
+          ].join("\n");
+        });
+
+    if (failures.length > 0) {
+      sections.push(
+        [
+          "Failing tests from the previous attempt:",
+          ...failures,
+        ].join("\n\n")
+      );
+    }
+  }
+
+  const reviewResult =
+    context.reviewResult;
+
+  if (
+    reviewResult !== null &&
+    reviewResult.status ===
+      "CHANGES_REQUIRED" &&
+    reviewResult.output.trim().length >
+      0
+  ) {
+    sections.push(
+      [
+        "Reviewer feedback from the previous attempt:",
+        tail(
+          reviewResult.output.trim(),
+          MAX_FEEDBACK_SECTION_CHARS
+        ),
+      ].join("\n")
+    );
+  }
+
+  if (sections.length === 0) {
+    return null;
+  }
+
+  return [
+    `Feedback from iteration ${context.iteration} (the previous attempt did not satisfy the request):`,
+    ...sections,
+  ].join("\n\n");
+}
+
+function appendRetryFeedback(
+  previous: string | null,
+  next: string | null
+): string | null {
+  if (next === null) {
+    return previous;
+  }
+
+  const combined =
+    previous === null
+      ? next
+      : `${previous}\n\n---\n\n${next}`;
+
+  return tail(
+    combined,
+    MAX_RETRY_FEEDBACK_CHARS
+  );
+}
+
 export class DefaultPipelineOrchestrator
   implements PipelineOrchestrator
-{
-  private readonly steps:
+{  private readonly steps:
     readonly PipelineStep[];
 
   private readonly stepRunner:
@@ -340,6 +463,14 @@ export class DefaultPipelineOrchestrator
           const previousDecisionState =
             context.state;
 
+          const retryFeedback =
+            appendRetryFeedback(
+              context.retryFeedback,
+              buildRetryFeedback(
+                context
+              )
+            );
+
           context = {
             ...context,
 
@@ -366,6 +497,8 @@ export class DefaultPipelineOrchestrator
 
             failureReason:
               null,
+
+            retryFeedback,
 
             updatedAt:
               new Date().toISOString(),

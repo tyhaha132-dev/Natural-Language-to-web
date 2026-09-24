@@ -253,4 +253,119 @@ describe("CodingStep", () => {
       "Coder execution failed"
     );
   });
+
+  it("should include retry feedback in the coder prompt on retry iterations", async () => {
+    let receivedPrompt = "";
+
+    const agentService: AgentService = {
+      async run(
+        _role: AgentRole,
+        input
+      ): Promise<AgentResult> {
+        receivedPrompt =
+          input.prompt;
+
+        return {
+          status: "SUCCESS",
+          output: "code generated",
+          error: null,
+          durationMs: 1,
+        };
+      },
+    };
+
+    const step =
+      new CodingStep(
+        agentService
+      );
+
+    const context =
+      createPipelineExecutionContext({
+        id: "coding-test-5",
+        prompt:
+          "Create a student app",
+      });
+
+    await step.execute({
+      ...context,
+      workspace:
+        "test-workspace",
+      iteration: 1,
+      plan: {
+        prompt:
+          "Create a student app",
+        plan:
+          "Build application",
+        plannedAt:
+          new Date().toISOString(),
+      },
+      retryFeedback:
+        "Feedback from iteration 0: missing email validation",
+    });
+
+    expect(
+      receivedPrompt
+    ).toContain(
+      "Feedback from previous attempt(s)."
+    );
+
+    expect(
+      receivedPrompt
+    ).toContain(
+      "missing email validation"
+    );
+  });
+
+  it("should omit retry feedback on the first iteration", async () => {
+    let receivedPrompt = "";
+
+    const agentService: AgentService = {
+      async run(
+        _role: AgentRole,
+        input
+      ): Promise<AgentResult> {
+        receivedPrompt =
+          input.prompt;
+
+        return {
+          status: "SUCCESS",
+          output: "code generated",
+          error: null,
+          durationMs: 1,
+        };
+      },
+    };
+
+    const step =
+      new CodingStep(
+        agentService
+      );
+
+    const context =
+      createPipelineExecutionContext({
+        id: "coding-test-6",
+        prompt:
+          "Create a student app",
+      });
+
+    await step.execute({
+      ...context,
+      workspace:
+        "test-workspace",
+      plan: {
+        prompt:
+          "Create a student app",
+        plan:
+          "Build application",
+        plannedAt:
+          new Date().toISOString(),
+      },
+    });
+
+    expect(
+      receivedPrompt
+    ).not.toContain(
+      "Feedback from previous attempt(s)."
+    );
+  });
 });

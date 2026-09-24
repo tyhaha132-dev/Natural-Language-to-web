@@ -214,4 +214,62 @@ describe("ReviewStep", () => {
       "ReviewStep requires codingResult"
     );
   });
+
+  it("approves when the first line is APPROVED followed by a checklist", async () => {
+    const step =
+      new ReviewStep({
+        agentService:
+          createAgentService({
+            status: "SUCCESS",
+            output: [
+              "APPROVED",
+              "- [PASS] Student list page: renders table in index.html:12",
+              "- [PASS] Create form: posts to /api/students in app.js:40",
+            ].join("\n"),
+            error: null,
+            durationMs: 100,
+          }),
+      });
+
+    const result =
+      await step.execute(
+        createContext()
+      );
+
+    expect(
+      result.reviewResult?.status
+    ).toBe("APPROVED");
+  });
+
+  it("requests changes when the first line is CHANGES_REQUIRED with FAIL items", async () => {
+    const output = [
+      "CHANGES_REQUIRED",
+      "- [PASS] Student list page: renders table in index.html:12",
+      "- [FAIL] Delete action: no DELETE handler found in workspace",
+    ].join("\n");
+
+    const step =
+      new ReviewStep({
+        agentService:
+          createAgentService({
+            status: "SUCCESS",
+            output,
+            error: null,
+            durationMs: 100,
+          }),
+      });
+
+    const result =
+      await step.execute(
+        createContext()
+      );
+
+    expect(
+      result.reviewResult?.status
+    ).toBe("CHANGES_REQUIRED");
+
+    expect(
+      result.reviewResult?.output
+    ).toBe(output);
+  });
 });

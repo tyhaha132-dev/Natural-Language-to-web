@@ -39,6 +39,7 @@ export interface PipelineExecutionContext
   reviewResult: ReviewResult | null;
   decisionResult: DecisionResult | null;
   failureReason: string | null;
+  retryFeedback: string | null;
 }
 
 export function createPipelineExecutionContext(
@@ -61,6 +62,7 @@ export function createPipelineExecutionContext(
     reviewResult: null,
     decisionResult: null,
     failureReason: null,
+    retryFeedback: null,
   };
 }
 

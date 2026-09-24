@@ -1,4 +1,8 @@
-﻿import type {
+﻿import { promises as fs } from "node:fs";
+
+import path from "node:path";
+
+import type {
   ApplicationServer,
 } from "../runtime/application-server.js";
 
@@ -17,6 +21,10 @@ import type {
 import type {
   TestCommand,
 } from "./test-plan.js";
+
+import type {
+  TestRunner,
+} from "./test-runner.js";
 
 export type ApplicationTestingStatus =
   | "PASSED"
@@ -54,15 +62,153 @@ export interface ApplicationTestingServiceOptions {
 
   readonly httpSmokeTester:
     HttpSmokeTester;
+
+  readonly testRunner?: TestRunner;
+}
+
+async function hasTestScript(
+  workspace: string
+): Promise<boolean> {
+  try {
+    const raw =
+      await fs.readFile(
+        path.join(
+          workspace,
+          "package.json"
+        ),
+        "utf8"
+      );
+
+    const parsed: unknown =
+      JSON.parse(raw);
+
+    if (
+      typeof parsed !== "object" ||
+      parsed === null
+    ) {
+      return false;
+    }
+
+    const scripts = (
+      parsed as {
+        scripts?: unknown;
+      }
+    ).scripts;
+
+    if (
+      typeof scripts !== "object" ||
+      scripts === null
+    ) {
+      return false;
+    }
+
+    const testScript = (
+      scripts as {
+        test?: unknown;
+      }
+    ).test;
+
+    return (
+      typeof testScript ===
+        "string" &&
+      testScript.trim().length > 0
+    );
+  } catch {
+    return false;
+  }
+}
+
+function tail(
+  text: string,
+  maxChars: number
+): string {
+  if (text.length <= maxChars) {
+    return text;
+  }
+
+  return (
+    "...[truncated]...\n" +
+    text.slice(-maxChars)
+  );
 }
 
 export function createApplicationTestingService(
   options: ApplicationTestingServiceOptions
 ): ApplicationTestingService {
+  async function runGeneratedTests(
+    workspace: string,
+    commands: readonly TestCommand[]
+  ): Promise<string | null> {
+    if (
+      options.testRunner ===
+        undefined ||
+      commands.length === 0
+    ) {
+      return null;
+    }
+
+    if (
+      !(await hasTestScript(
+        workspace
+      ))
+    ) {
+      console.log(
+        "[APP_SERVICE_DEBUG] no test script in workspace, skipping generated tests"
+      );
+
+      return null;
+    }
+
+    for (const command of commands) {
+      console.log(
+        `[APP_SERVICE_DEBUG] running generated test command: ${command.command} ${command.args.join(" ")}`
+      );
+
+      const processResult =
+        await options.testRunner.run(
+          workspace,
+          command
+        );
+
+      if (
+        processResult.timedOut ||
+        processResult.exitCode !==
+          0
+      ) {
+        const output = tail(
+          [
+            processResult.stderr,
+            processResult.stdout,
+          ]
+            .filter(
+              (part) =>
+                part.trim().length >
+                0
+            )
+            .join("\n") ||
+            `exit code ${processResult.exitCode}`,
+          3000
+        );
+
+        return [
+          `Generated test command failed: ${command.command} ${command.args.join(" ")}`,
+          `Exit code: ${processResult.timedOut ? "timed out" : processResult.exitCode}`,
+          `Output:\n${output}`,
+        ].join("\n");
+      }
+    }
+
+    console.log(
+      "[APP_SERVICE_DEBUG] generated tests passed"
+    );
+
+    return null;
+  }
+
   return {
     async run(
       workspace,
-      _commands
+      commands
     ): Promise<ApplicationTestingResult> {
       console.log(
         "[APP_SERVICE_DEBUG] run started"
@@ -151,6 +297,36 @@ export function createApplicationTestingService(
         console.log(
           "[APP_SERVICE_DEBUG] HTTP smoke passed"
         );
+
+        const generatedTestError =
+          await runGeneratedTests(
+            workspace,
+            commands
+          );
+
+        if (
+          generatedTestError !==
+          null
+        ) {
+          console.log(
+            "[APP_SERVICE_DEBUG] generated tests failed"
+          );
+
+          return {
+            status: "FAILED",
+
+            runtime:
+              server.runtime.type,
+
+            applicationStarted,
+
+            url:
+              server.baseUrl,
+
+            error:
+              generatedTestError,
+          };
+        }
 
         return {
           status: "PASSED",

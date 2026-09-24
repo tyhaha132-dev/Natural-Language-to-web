@@ -55,6 +55,8 @@ export class StateTransitionStep
         context.decisionResult,
       failureReason:
         context.failureReason,
+      retryFeedback:
+        context.retryFeedback,
     };
   }
 }

@@ -59,7 +59,7 @@ export class CodingStep
       );
     }
 
-    const prompt = [
+    const promptParts = [
       "Implement the project described by the user.",
       "",
       "User request:",
@@ -69,7 +69,25 @@ export class CodingStep
       context.plan.plan,
       "",
       CODING_RUNTIME_CONTRACT,
-    ].join("\n");
+    ];
+
+    if (
+      context.iteration > 0 &&
+      context.retryFeedback !== null
+    ) {
+      promptParts.push(
+        "",
+        "Feedback from previous attempt(s).",
+        "The previous implementation did NOT satisfy the request.",
+        "You MUST address every item below in this attempt.",
+        "Do NOT repeat the same mistakes.",
+        "",
+        context.retryFeedback
+      );
+    }
+
+    const prompt =
+      promptParts.join("\n");
 
     const result =
       await this.agentService.run(

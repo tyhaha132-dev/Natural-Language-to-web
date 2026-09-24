@@ -225,6 +225,8 @@ export function createPipelineOrchestrator(
       applicationTestRunner,
 
       httpSmokeTester,
+
+      testRunner,
     });
 
   const iterationManager =

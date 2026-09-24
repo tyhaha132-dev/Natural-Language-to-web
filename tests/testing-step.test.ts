@@ -44,6 +44,7 @@ function createContext(
     reviewResult: null,
     decisionResult: null,
     failureReason: null,
+    retryFeedback: null,
   };
 }
 

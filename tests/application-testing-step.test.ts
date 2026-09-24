@@ -56,6 +56,8 @@ function createContext(
     decisionResult: null,
 
     failureReason: null,
+
+    retryFeedback: null,
   };
 }
 

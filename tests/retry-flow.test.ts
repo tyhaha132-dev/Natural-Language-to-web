@@ -605,6 +605,141 @@ describe(
         ).toHaveLength(0);
       }
     );
+
+    it(
+      "should pass previous test failures to the coder on retry",
+      async () => {
+        const coderPrompts: string[] = [];
+        let testRuns = 0;
+
+        const agentService: AgentService = {
+          async run(
+            role,
+            input
+          ) {
+            if (role === "coder") {
+              coderPrompts.push(
+                input.prompt
+              );
+
+              return {
+                status: "SUCCESS",
+                output: "CODE",
+                error: null,
+                durationMs: 0,
+              };
+            }
+
+            if (role === "planner") {
+              return {
+                status: "SUCCESS",
+                output: "PLAN",
+                error: null,
+                durationMs: 0,
+              };
+            }
+
+            return {
+              status: "SUCCESS",
+              output: "APPROVED",
+              error: null,
+              durationMs: 0,
+            };
+          },
+        };
+
+        const testingService: TestingService = {
+          async run() {
+            testRuns += 1;
+
+            if (testRuns === 1) {
+              return {
+                status: "FAILED",
+                results: [
+                  {
+                    status: "FAILED",
+                    command: "npm.cmd",
+                    args: ["test"],
+                    exitCode: 1,
+                    stdout: "",
+                    stderr:
+                      "AssertionError: missing email validation",
+                    durationMs: 1,
+                  },
+                ],
+              };
+            }
+
+            return {
+              status: "PASSED",
+              results: [
+                {
+                  status: "PASSED",
+                  command: "npm.cmd",
+                  args: ["test"],
+                  exitCode: 0,
+                  stdout: "passed",
+                  stderr: "",
+                  durationMs: 1,
+                },
+              ],
+            };
+          },
+        };
+
+        const iterationManager =
+          createIterationManager({
+            maxIterations: 5,
+          });
+
+        const decisionEngine =
+          createDecisionEngine({
+            iterationManager,
+          });
+
+        const orchestrator =
+          new DefaultPipelineOrchestrator({
+            agentService,
+            testingService,
+            testPlan:
+              createTestPlan(),
+            decisionEngine,
+            iterationManager,
+          });
+
+        const result =
+          await orchestrator.execute({
+            id: "retry-feedback-test",
+            prompt: "Build a student app",
+          });
+
+        expect(result.status).toBe(
+          "COMPLETED"
+        );
+
+        expect(
+          coderPrompts
+        ).toHaveLength(2);
+
+        expect(
+          coderPrompts[0]
+        ).not.toContain(
+          "Feedback from previous attempt(s)."
+        );
+
+        expect(
+          coderPrompts[1]
+        ).toContain(
+          "Feedback from previous attempt(s)."
+        );
+
+        expect(
+          coderPrompts[1]
+        ).toContain(
+          "missing email validation"
+        );
+      }
+    );
   }
 );
 

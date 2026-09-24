@@ -10,9 +10,18 @@ export interface ReviewStepOptions {
 function parseReviewStatus(
   output: string
 ): "APPROVED" | "CHANGES_REQUIRED" {
-  const normalized = output.trim().toUpperCase();
+  const firstLine =
+    output
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(
+        (line) => line.length > 0
+      ) ?? "";
 
-  if (normalized === "APPROVED") {
+  if (
+    firstLine.toUpperCase() ===
+    "APPROVED"
+  ) {
     return "APPROVED";
   }
 
@@ -48,13 +57,25 @@ function buildReviewPrompt(
     "- Check for obvious missing requirements.",
     "- Check the actual files in the workspace rather than assuming they are correct.",
     "",
-    "Required final response format:",
-    "If the implementation satisfies the request, your final response MUST be exactly:",
+    "If the validated implementation plan contains an Acceptance criteria section,",
+    "verify the workspace against EACH criterion and report every criterion as",
+    "PASS or FAIL with the file and line evidence.",
+    "",
+    "Required response format:",
+    "Your response MUST start with exactly one verdict word on the first line:",
+    "APPROVED or CHANGES_REQUIRED.",
+    "",
+    "After the verdict line, list a per-requirement checklist in this shape:",
+    "- [PASS] <requirement>: <brief evidence>",
+    "- [FAIL] <requirement>: <what is missing or wrong>",
+    "",
+    "If the implementation satisfies the request, the first line MUST be exactly:",
     "APPROVED",
     "",
-    "If changes are required, your final response MUST:",
-    "1. Start with exactly: CHANGES_REQUIRED",
-    "2. List the concrete problems that must be fixed.",
+    "If changes are required, the first line MUST be exactly:",
+    "CHANGES_REQUIRED",
+    "followed by the checklist with every FAIL item describing a concrete problem",
+    "that must be fixed.",
     "",
     "Do not end by asking the user what to do next.",
     "Do not ask any questions.",

@@ -45,6 +45,14 @@ describe("PlanningStep", () => {
           "Return only the implementation plan."
         );
 
+        expect(input.prompt).toContain(
+          "Acceptance criteria"
+        );
+
+        expect(input.prompt).toContain(
+          "Assumptions"
+        );
+
         return {
           status: "SUCCESS" as const,
           output: "1. Create student model\n2. Create CRUD API",
