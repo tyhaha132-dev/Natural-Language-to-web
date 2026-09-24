@@ -1,3 +1,7 @@
+import { promises as fs } from "node:fs";
+
+import path from "node:path";
+
 import type { AgentService } from "../agents/agent-service.js";
 import type { PipelineExecutionContext } from "./pipeline-execution-context.js";
 import type { PipelineStep } from "./pipeline-step.js";
@@ -28,9 +32,180 @@ function parseReviewStatus(
   return "CHANGES_REQUIRED";
 }
 
-function buildReviewPrompt(
+const MAX_TREE_ENTRIES = 100;
+
+const MAX_TREE_DEPTH = 3;
+
+const SKIPPED_DIRECTORIES = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  "coverage",
+  ".next",
+]);
+
+async function collectTreeEntries(
+  directory: string,
+  prefix: string,
+  depth: number,
+  entries: string[]
+): Promise<void> {
+  if (
+    depth > MAX_TREE_DEPTH ||
+    entries.length >=
+      MAX_TREE_ENTRIES
+  ) {
+    return;
+  }
+
+  let children;
+  try {
+    children = await fs.readdir(
+      directory,
+      { withFileTypes: true }
+    );
+  } catch {
+    return;
+  }
+
+  children.sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+
+  for (const child of children) {
+    if (
+      entries.length >=
+      MAX_TREE_ENTRIES
+    ) {
+      break;
+    }
+
+    const displayName =
+      child.isDirectory()
+        ? `${child.name}/`
+        : child.name;
+
+    entries.push(
+      `${prefix}${displayName}`
+    );
+
+    if (
+      child.isDirectory() &&
+      !SKIPPED_DIRECTORIES.has(
+        child.name
+      )
+    ) {
+      await collectTreeEntries(
+        path.join(
+          directory,
+          child.name
+        ),
+        `${prefix}${child.name}/`,
+        depth + 1,
+        entries
+      );
+    }
+  }
+}
+
+async function buildWorkspaceTree(
+  workspace: string
+): Promise<string> {
+  const entries: string[] = [];
+
+  await collectTreeEntries(
+    workspace,
+    "",
+    0,
+    entries
+  );
+
+  if (entries.length === 0) {
+    return "(workspace is empty or unreadable)";
+  }
+
+  const truncated =
+    entries.length >=
+    MAX_TREE_ENTRIES
+      ? "\n...(truncated, further entries omitted)"
+      : "";
+
+  return (
+    entries.join("\n") +
+    truncated
+  );
+}
+
+function tail(
+  text: string,
+  maxChars: number
+): string {
+  if (text.length <= maxChars) {
+    return text;
+  }
+
+  return (
+    "...[truncated]...\n" +
+    text.slice(-maxChars)
+  );
+}
+
+function buildTestSummary(
   context: PipelineExecutionContext
 ): string {
+  const testResult =
+    context.testResult;
+
+  if (testResult === null) {
+    return "No test result is available.";
+  }
+
+  const lines = [
+    `Overall test status: ${testResult.status}`,
+  ];
+
+  for (const result of testResult.results) {
+    if (
+      result.status ===
+      "PASSED"
+    ) {
+      continue;
+    }
+
+    lines.push(
+      [
+        `Failing check: ${result.command} ${result.args.join(" ")}`,
+        tail(
+          [
+            result.stderr,
+            result.stdout,
+          ]
+            .filter(
+              (part) =>
+                part.trim().length >
+                0
+            )
+            .join("\n"),
+          800
+        ),
+      ].join("\n")
+    );
+  }
+
+  return lines.join("\n\n");
+}
+
+async function buildReviewPrompt(
+  context: PipelineExecutionContext
+): Promise<string> {
+  const workspaceTree =
+    context.workspace === null
+      ? "(no workspace)"
+      : await buildWorkspaceTree(
+          context.workspace
+        );
+
   return [
     "You are the final code reviewer in an autonomous software engineering pipeline.",
     "",
@@ -44,6 +219,19 @@ function buildReviewPrompt(
     "- Do NOT create any files.",
     "- Do NOT run an interactive workflow.",
     "- Make the review decision yourself using the available evidence.",
+    "",
+    "TIME BUDGET:",
+    "- You operate under a strict time limit.",
+    "- Read AT MOST 10 files. Start with the entry points below, then decide.",
+    "- Do NOT read every file in the workspace.",
+    "- Do NOT run servers, install packages, or execute long commands.",
+    "- Inspect the key files, verify the checklist, then emit your verdict immediately.",
+    "",
+    "Workspace file tree (node_modules, .git and build output omitted):",
+    workspaceTree,
+    "",
+    "Latest test summary:",
+    buildTestSummary(context),
     "",
     "Review the implementation against the original user request.",
     "",
@@ -115,7 +303,9 @@ export class ReviewStep implements PipelineStep {
     );
 
     const prompt =
-      buildReviewPrompt(context);
+      await buildReviewPrompt(
+        context
+      );
 
     console.log(
       `[REVIEW_DEBUG] calling reviewer agent`

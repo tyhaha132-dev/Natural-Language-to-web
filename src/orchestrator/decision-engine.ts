@@ -70,6 +70,16 @@ export function createDecisionEngine(
         context.reviewResult.status ===
         "FAILED"
       ) {
+        if (
+          options.iterationManager
+            .canContinue()
+        ) {
+          return createDecisionResult(
+            "RETRY_REVIEW",
+            "Reviewer execution failed and another iteration is available"
+          );
+        }
+
         return createDecisionResult(
           "FAIL",
           "Reviewer execution failed"

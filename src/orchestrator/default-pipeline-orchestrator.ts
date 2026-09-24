@@ -457,6 +457,73 @@ export class DefaultPipelineOrchestrator
             );
           }
 
+          if (
+            decision.decision ===
+            "RETRY_REVIEW"
+          ) {
+            const nextIteration =
+              this.iterationManager.next();
+
+            const previousDecisionState =
+              context.state;
+
+            /*
+             * Reviewer execution failure (crash or timeout):
+             * the implementation and its test results are still
+             * valid, so only the review step is retried.
+             */
+            context = {
+              ...context,
+
+              state:
+                "REVIEWING",
+
+              iteration:
+                nextIteration,
+
+              reviewResult:
+                null,
+
+              decisionResult:
+                null,
+
+              failureReason:
+                null,
+
+              retryFeedback:
+                appendRetryFeedback(
+                  context.retryFeedback,
+                  `Feedback from iteration ${context.iteration}: the previous review attempt failed to execute (${decision.reason}). Re-review the same workspace.`
+                ),
+
+              updatedAt:
+                new Date().toISOString(),
+            };
+
+            this.pipelineObserver.onStateChange(
+              previousDecisionState,
+              context
+            );
+
+            const reviewIndex =
+              this.steps.findIndex(
+                (candidate) =>
+                  candidate.name ===
+                  "review"
+              );
+
+            if (reviewIndex === -1) {
+              throw new Error(
+                "Cannot retry review: review step was not found"
+              );
+            }
+
+            stepIndex =
+              reviewIndex;
+
+            continue;
+          }
+
           const nextIteration =
             this.iterationManager.next();
 

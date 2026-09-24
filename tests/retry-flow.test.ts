@@ -740,6 +740,157 @@ describe(
         );
       }
     );
+
+    it(
+      "should retry only the review step when reviewer execution fails",
+      async () => {
+        const calls: string[] = [];
+        let reviewerRuns = 0;
+
+        const agentService: AgentService = {
+          async run(
+            role,
+            input
+          ) {
+            calls.push(
+              `${role}:${input.pipelineId}`
+            );
+
+            if (role === "planner") {
+              return {
+                status: "SUCCESS",
+                output: "PLAN",
+                error: null,
+                durationMs: 0,
+              };
+            }
+
+            if (role === "coder") {
+              return {
+                status: "SUCCESS",
+                output: "CODE",
+                error: null,
+                durationMs: 0,
+              };
+            }
+
+            reviewerRuns += 1;
+
+            if (reviewerRuns === 1) {
+              return {
+                status: "FAILURE",
+                output: "",
+                error:
+                  "Reviewer process timed out",
+                durationMs: 0,
+              };
+            }
+
+            return {
+              status: "SUCCESS",
+              output: "APPROVED",
+              error: null,
+              durationMs: 0,
+            };
+          },
+        };
+
+        const testingService: TestingService = {
+          async run() {
+            return {
+              status: "PASSED",
+              results: [
+                {
+                  status: "PASSED",
+                  command: "npm.cmd",
+                  args: ["test"],
+                  exitCode: 0,
+                  stdout: "passed",
+                  stderr: "",
+                  durationMs: 1,
+                },
+              ],
+            };
+          },
+        };
+
+        const iterationManager =
+          createIterationManager({
+            maxIterations: 5,
+          });
+
+        const decisionEngine =
+          createDecisionEngine({
+            iterationManager,
+          });
+
+        const orchestrator =
+          new DefaultPipelineOrchestrator({
+            agentService,
+            testingService,
+            testPlan:
+              createTestPlan(),
+            decisionEngine,
+            iterationManager,
+          });
+
+        const result =
+          await orchestrator.execute({
+            id: "retry-review-test",
+            prompt: "Build a student app",
+          });
+
+        expect(result.status).toBe(
+          "COMPLETED"
+        );
+
+        expect(
+          result.context.iteration
+        ).toBe(1);
+
+        expect(
+          result.context.codingResult
+            ?.output
+        ).toBe("CODE");
+
+        expect(
+          result.context.reviewResult
+            ?.status
+        ).toBe("APPROVED");
+
+        expect(
+          result.context.decisionResult
+            ?.decision
+        ).toBe("COMPLETE");
+
+        expect(
+          calls.filter(
+            (call) =>
+              call.startsWith(
+                "planner:"
+              )
+          )
+        ).toHaveLength(1);
+
+        expect(
+          calls.filter(
+            (call) =>
+              call.startsWith(
+                "coder:"
+              )
+          )
+        ).toHaveLength(1);
+
+        expect(
+          calls.filter(
+            (call) =>
+              call.startsWith(
+                "reviewer:"
+              )
+          )
+        ).toHaveLength(2);
+      }
+    );
   }
 );
 

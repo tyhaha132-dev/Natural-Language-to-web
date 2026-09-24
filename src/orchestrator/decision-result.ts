@@ -1,6 +1,7 @@
 export type Decision =
   | "COMPLETE"
   | "RETRY"
+  | "RETRY_REVIEW"
   | "FAIL";
 
 export interface DecisionResult {

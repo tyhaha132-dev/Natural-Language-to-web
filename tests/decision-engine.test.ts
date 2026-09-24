@@ -177,11 +177,45 @@ describe("DecisionEngine", () => {
     );
   });
 
-  it("should fail when reviewer execution failed", () => {
+  it("should retry the review step when reviewer execution failed and iterations remain", () => {
     const iterationManager =
       createIterationManager({
         maxIterations: 5,
       });
+
+    const engine =
+      createDecisionEngine({
+        iterationManager,
+      });
+
+    const result =
+      engine.decide(
+        createContext({
+          testResult:
+            createPassingTestResult(),
+          reviewResult:
+            createReviewResult(
+              "FAILED"
+            ),
+        })
+      );
+
+    expect(result.decision).toBe(
+      "RETRY_REVIEW"
+    );
+
+    expect(result.reason).toContain(
+      "Reviewer execution failed"
+    );
+  });
+
+  it("should fail when reviewer execution failed and iterations are exhausted", () => {
+    const iterationManager =
+      createIterationManager({
+        maxIterations: 1,
+      });
+
+    iterationManager.next();
 
     const engine =
       createDecisionEngine({

@@ -76,6 +76,18 @@ function createAgentService(
         "CHANGES_REQUIRED"
       );
 
+      expect(
+        input.prompt
+      ).toContain(
+        "AT MOST 10 files"
+      );
+
+      expect(
+        input.prompt
+      ).toContain(
+        "Workspace file tree"
+      );
+
       return result;
     },
   };
