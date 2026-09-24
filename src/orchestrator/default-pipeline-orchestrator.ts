@@ -359,11 +359,103 @@ export class DefaultPipelineOrchestrator
         const previousState =
           context.state;
 
-        context =
-          await this.stepRunner.run(
-            step,
+        try {
+          context =
+            await this.stepRunner.run(
+              step,
+              context
+            );
+        } catch (error) {
+          /*
+           * Coder execution failure (crash or timeout):
+           * the plan is still valid, so the coding step is
+           * retried with the failure as feedback while
+           * iterations remain. Any other step failure, or
+           * an exhausted iteration budget, keeps the
+           * previous fail-fast behavior.
+           */
+          if (
+            step.name !==
+              "code-project" ||
+            this.iterationManager ===
+              null ||
+            !this.iterationManager.canContinue()
+          ) {
+            throw error;
+          }
+
+          const failureReason =
+            error instanceof Error
+              ? error.message
+              : String(error);
+
+          const nextIteration =
+            this.iterationManager.next();
+
+          context = {
+            ...context,
+
+            state:
+              "CODING",
+
+            iteration:
+              nextIteration,
+
+            codingResult:
+              null,
+
+            databaseResult:
+              null,
+
+            testResult:
+              null,
+
+            reviewResult:
+              null,
+
+            decisionResult:
+              null,
+
+            failureReason:
+              null,
+
+            retryFeedback:
+              appendRetryFeedback(
+                context.retryFeedback,
+                [
+                  `Feedback from iteration ${context.iteration}: the previous coding attempt failed to execute.`,
+                  `Coder error: ${failureReason}`,
+                  "Simplify the implementation and complete it within the time limit.",
+                ].join("\n")
+              ),
+
+            updatedAt:
+              new Date().toISOString(),
+          };
+
+          this.pipelineObserver.onStateChange(
+            previousState,
             context
           );
+
+          const codingIndex =
+            this.steps.findIndex(
+              (candidate) =>
+                candidate.name ===
+                "code-project"
+            );
+
+          if (codingIndex === -1) {
+            throw new Error(
+              "Cannot retry pipeline: code-project step was not found"
+            );
+          }
+
+          stepIndex =
+            codingIndex;
+
+          continue;
+        }
 
         if (
           previousState !==

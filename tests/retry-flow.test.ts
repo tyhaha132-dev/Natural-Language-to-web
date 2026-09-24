@@ -891,6 +891,207 @@ describe(
         ).toHaveLength(2);
       }
     );
+
+    it(
+      "should retry coding with failure feedback when the coder execution fails",
+      async () => {
+        const coderPrompts: string[] = [];
+        let coderRuns = 0;
+
+        const agentService: AgentService = {
+          async run(
+            role,
+            input
+          ) {
+            if (role === "coder") {
+              coderRuns += 1;
+              coderPrompts.push(
+                input.prompt
+              );
+
+              if (coderRuns === 1) {
+                return {
+                  status: "FAILURE",
+                  output: "",
+                  error:
+                    "Coder process timed out",
+                  durationMs: 0,
+                };
+              }
+
+              return {
+                status: "SUCCESS",
+                output: "CODE",
+                error: null,
+                durationMs: 0,
+              };
+            }
+
+            if (role === "planner") {
+              return {
+                status: "SUCCESS",
+                output: "PLAN",
+                error: null,
+                durationMs: 0,
+              };
+            }
+
+            return {
+              status: "SUCCESS",
+              output: "APPROVED",
+              error: null,
+              durationMs: 0,
+            };
+          },
+        };
+
+        const testingService: TestingService = {
+          async run() {
+            return {
+              status: "PASSED",
+              results: [
+                {
+                  status: "PASSED",
+                  command: "npm.cmd",
+                  args: ["test"],
+                  exitCode: 0,
+                  stdout: "passed",
+                  stderr: "",
+                  durationMs: 1,
+                },
+              ],
+            };
+          },
+        };
+
+        const iterationManager =
+          createIterationManager({
+            maxIterations: 5,
+          });
+
+        const decisionEngine =
+          createDecisionEngine({
+            iterationManager,
+          });
+
+        const orchestrator =
+          new DefaultPipelineOrchestrator({
+            agentService,
+            testingService,
+            testPlan:
+              createTestPlan(),
+            decisionEngine,
+            iterationManager,
+          });
+
+        const result =
+          await orchestrator.execute({
+            id: "retry-coder-failure-test",
+            prompt: "Build a student app",
+          });
+
+        expect(result.status).toBe(
+          "COMPLETED"
+        );
+
+        expect(
+          result.context.iteration
+        ).toBe(1);
+
+        expect(
+          coderPrompts
+        ).toHaveLength(2);
+
+        expect(
+          coderPrompts[1]
+        ).toContain(
+          "previous coding attempt failed to execute"
+        );
+
+        expect(
+          coderPrompts[1]
+        ).toContain(
+          "Coder process timed out"
+        );
+      }
+    );
+
+    it(
+      "should fail when the coder keeps failing past the retry budget",
+      async () => {
+        let coderRuns = 0;
+
+        const agentService: AgentService = {
+          async run(
+            role,
+            _input
+          ) {
+            if (role === "coder") {
+              coderRuns += 1;
+
+              return {
+                status: "FAILURE",
+                output: "",
+                error: "coder boom",
+                durationMs: 0,
+              };
+            }
+
+            return {
+              status: "SUCCESS",
+              output: "PLAN",
+              error: null,
+              durationMs: 0,
+            };
+          },
+        };
+
+        const testingService: TestingService = {
+          async run() {
+            return {
+              status: "PASSED",
+              results: [],
+            };
+          },
+        };
+
+        const iterationManager =
+          createIterationManager({
+            maxIterations: 1,
+          });
+
+        const decisionEngine =
+          createDecisionEngine({
+            iterationManager,
+          });
+
+        const orchestrator =
+          new DefaultPipelineOrchestrator({
+            agentService,
+            testingService,
+            testPlan:
+              createTestPlan(),
+            decisionEngine,
+            iterationManager,
+          });
+
+        const result =
+          await orchestrator.execute({
+            id: "retry-coder-exhausted-test",
+            prompt: "Build a student app",
+          });
+
+        expect(result.status).toBe(
+          "FAILED"
+        );
+
+        expect(
+          result.context.failureReason
+        ).toContain("coder boom");
+
+        expect(coderRuns).toBe(2);
+      }
+    );
   }
 );
 
