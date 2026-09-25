@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    # The agent runtime is Windows-oriented (PowerShell, .cmd
+    # execution, taskkill-based process trees).
+    runs-on: windows-latest
+
+    env:
+      NODE_ENV: test
+      PIPELINE_MAX_ITERATIONS: 5
+      PROCESS_TIMEOUT_MS: 600000
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: web_coding_agent
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install PostgreSQL
+        run: |
+          choco install postgresql16 --params '/Password:postgres' -y --no-progress
+          Get-Service postgresql*
+
+      - name: Create test database
+        run: |
+          $env:PGPASSWORD = 'postgres'
+          & 'C:\Program Files\PostgreSQL\16\bin\psql.exe' -U postgres -h localhost -c 'CREATE DATABASE web_coding_agent;'
+        shell: powershell
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck and unit tests
+        run: npm run check

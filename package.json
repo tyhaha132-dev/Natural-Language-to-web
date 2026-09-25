@@ -1,8 +1,11 @@
 {
   "name": "web-coding-agent",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Autonomous NL-to-web coding agent: turns natural-language requirements into tested web applications",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "vitest run --exclude tests/integration/** --exclude workspaces/**",
     "test:ai": "vitest run tests/integration",
@@ -13,7 +16,12 @@
     "agent": "tsx src/index.ts",
     "check": "npm run typecheck && npm run test"
   },
-  "keywords": [],
+  "keywords": [
+    "ai-agent",
+    "code-generation",
+    "opencode",
+    "web"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
@@ -23,7 +31,6 @@
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
   },
-  "type": "module",
   "dependencies": {
     "dotenv": "^18.0.2",
     "pg": "^8.23.0"

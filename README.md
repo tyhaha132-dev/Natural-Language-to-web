@@ -7,6 +7,16 @@ tự sửa (tối đa 5 iteration) cho đến khi đạt yêu cầu hoặc thấ
 Đã chứng minh live: yêu cầu tiếng Việt (trang đặt lịch barber) → app Express
 chạy thật, `POST` booking 201, SĐT sai 400, 50/50 tests xanh, pipeline `COMPLETED`.
 
+## Yêu cầu môi trường
+
+- Node.js >= 20 (khuyên 22), Windows + PowerShell.
+- PostgreSQL local (theo `.env`, copy từ `.env.example`).
+- OpenCode CLI đã đăng nhập — chỉ cần khi chạy benchmark AI thật
+  (`npm run agent`, `npm run test:ai`); `npm run check` không cần.
+
+CI (`.github/workflows/ci.yml`) chạy `npm run check` trên Windows mỗi
+push/PR vào `main`, kèm PostgreSQL cài tự động.
+
 ## Giao việc
 
 ```powershell
