@@ -1,5 +1,7 @@
 # Web Coding Agent
 
+[![CI](https://github.com/tyhaha132-dev/Natural-Language-to-web/actions/workflows/ci.yml/badge.svg)](https://github.com/tyhaha132-dev/Natural-Language-to-web/actions/workflows/ci.yml)
+
 Agent tự động biến **yêu cầu ngôn ngữ tự nhiên thành ứng dụng web chạy được**:
 nhận yêu cầu → phân tích → lập kế hoạch → viết code → kiểm thử → review →
 tự sửa (tối đa 5 iteration) cho đến khi đạt yêu cầu hoặc thất bại rõ lý do.
