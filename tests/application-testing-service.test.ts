@@ -622,4 +622,135 @@ describe("ApplicationTestingService", () => {
       }
     );
   });
+
+  it("should build the application before starting the server", async () => {
+    const workspace =
+      await createWorkspaceWithPackage({
+        build: "node scripts/build.mjs",
+        start: "node server.js",
+      });
+
+    const server =
+      createStaticServer();
+
+    const calls: string[] = [];
+
+    const testRunner: TestRunner = {
+      run: vi.fn(
+        async (
+          _workspace: string,
+          command: {
+            command: string;
+            args: readonly string[];
+          }
+        ) => {
+          calls.push(
+            `${command.command} ${command.args.join(" ")}`
+          );
+
+          return {
+            command: command.command,
+            args: [...command.args],
+            exitCode: 0,
+            stdout: "built",
+            stderr: "",
+            timedOut: false,
+            durationMs: 5,
+          };
+        }
+      ),
+    };
+
+    const { service } =
+      createService(
+        server,
+        createPassingSmoke(
+          "http://127.0.0.1:43127"
+        ),
+        testRunner
+      );
+
+    const result =
+      await service.run(
+        workspace,
+        []
+      );
+
+    expect(
+      calls.some(
+        (call) =>
+          call.includes("build")
+      )
+    ).toBe(true);
+
+    expect(
+      result.status
+    ).toBe("PASSED");
+
+    await fs.rm(
+      workspace,
+      {
+        recursive: true,
+        force: true,
+      }
+    );
+  });
+
+  it("should fail when the application build fails", async () => {
+    const workspace =
+      await createWorkspaceWithPackage({
+        build: "node scripts/build.mjs",
+        start: "node server.js",
+      });
+
+    const server =
+      createStaticServer();
+
+    const testRunner: TestRunner = {
+      run: vi.fn().mockResolvedValue({
+        command: "npm.cmd",
+        args: ["run", "build"],
+        exitCode: 1,
+        stdout: "",
+        stderr: "Build failed: syntax error",
+        timedOut: false,
+        durationMs: 5,
+      }),
+    };
+
+    const { service } =
+      createService(
+        server,
+        createPassingSmoke(
+          "http://127.0.0.1:43127"
+        ),
+        testRunner
+      );
+
+    const result =
+      await service.run(
+        workspace,
+        []
+      );
+
+    expect(
+      result.status
+    ).toBe("FAILED");
+
+    expect(
+      result.error
+    ).toContain("build");
+
+    expect(
+      server.start
+    ).not.toHaveBeenCalled();
+
+    await fs.rm(
+      workspace,
+      {
+        recursive: true,
+        force: true,
+      }
+    );
+  });
 });

@@ -66,8 +66,9 @@ export interface ApplicationTestingServiceOptions {
   readonly testRunner?: TestRunner;
 }
 
-async function hasTestScript(
-  workspace: string
+async function hasScript(
+  workspace: string,
+  scriptName: string
 ): Promise<boolean> {
   try {
     const raw =
@@ -102,20 +103,29 @@ async function hasTestScript(
       return false;
     }
 
-    const testScript = (
-      scripts as {
-        test?: unknown;
-      }
-    ).test;
+    const script = (
+      scripts as Record<
+        string,
+        unknown
+      >
+    )[scriptName];
 
     return (
-      typeof testScript ===
-        "string" &&
-      testScript.trim().length > 0
+      typeof script === "string" &&
+      script.trim().length > 0
     );
   } catch {
     return false;
   }
+}
+
+async function hasTestScript(
+  workspace: string
+): Promise<boolean> {
+  return hasScript(
+    workspace,
+    "test"
+  );
 }
 
 function tail(
@@ -135,6 +145,88 @@ function tail(
 export function createApplicationTestingService(
   options: ApplicationTestingServiceOptions
 ): ApplicationTestingService {
+  /*
+   * Production build gate.
+   *
+   * A previous run shipped a stale/broken build: smoke passed
+   * against old output while the current sources had never been
+   * built. Apps declaring a build script are rebuilt here so the
+   * server under test always matches the workspace sources.
+   */
+  async function runBuildIfDeclared(
+    workspace: string
+  ): Promise<string | null> {
+    if (
+      options.testRunner ===
+        undefined
+    ) {
+      return null;
+    }
+
+    if (
+      !(await hasScript(
+        workspace,
+        "build"
+      ))
+    ) {
+      console.log(
+        "[APP_SERVICE_DEBUG] no build script in workspace, skipping build"
+      );
+
+      return null;
+    }
+
+    const buildCommand: TestCommand = {
+      command:
+        process.platform ===
+        "win32"
+          ? "npm.cmd"
+          : "npm",
+      args: ["run", "build"],
+    };
+
+    console.log(
+      "[APP_SERVICE_DEBUG] running application build before start"
+    );
+
+    const processResult =
+      await options.testRunner.run(
+        workspace,
+        buildCommand
+      );
+
+    if (
+      processResult.timedOut ||
+      processResult.exitCode !== 0
+    ) {
+      const output = tail(
+        [
+          processResult.stderr,
+          processResult.stdout,
+        ]
+          .filter(
+            (part) =>
+              part.trim().length > 0
+          )
+          .join("\n") ||
+          `exit code ${processResult.exitCode}`,
+        3000
+      );
+
+      return [
+        "Application build failed: npm run build",
+        `Exit code: ${processResult.timedOut ? "timed out" : processResult.exitCode}`,
+        `Output:\n${output}`,
+      ].join("\n");
+    }
+
+    console.log(
+      "[APP_SERVICE_DEBUG] application build passed"
+    );
+
+    return null;
+  }
+
   async function runGeneratedTests(
     workspace: string,
     commands: readonly TestCommand[]
@@ -244,6 +336,34 @@ export function createApplicationTestingService(
         false;
 
       try {
+        const buildError =
+          await runBuildIfDeclared(
+            workspace
+          );
+
+        if (
+          buildError !== null
+        ) {
+          console.log(
+            "[APP_SERVICE_DEBUG] application build failed"
+          );
+
+          return {
+            status: "FAILED",
+
+            runtime:
+              server.runtime.type,
+
+            applicationStarted,
+
+            url:
+              server.baseUrl,
+
+            error:
+              buildError,
+          };
+        }
+
         console.log(
           "[APP_SERVICE_DEBUG] starting application"
         );
