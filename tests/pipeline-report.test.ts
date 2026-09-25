@@ -16,6 +16,7 @@ import {
 
 import {
   getArtifactPath,
+  getPipelineArtifactDirectory,
 } from "../src/artifacts/artifact-path.js";
 
 import {
@@ -158,8 +159,13 @@ describe("pipeline-report", () => {
     );
 
     await fs.rm(
-      actualPath,
-      { force: true }
+      getPipelineArtifactDirectory(
+        pipelineId
+      ),
+      {
+        recursive: true,
+        force: true,
+      }
     );
   });
 });

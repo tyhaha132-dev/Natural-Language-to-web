@@ -1,8 +1,52 @@
 ﻿import { describe, expect, it } from "vitest";
 
 import {
+  promises as fs,
+} from "node:fs";
+
+import os from "node:os";
+
+import path from "node:path";
+
+import {
   createStaticServer,
 } from "../src/runtime/static-server.js";
+
+const FIXTURE_HTML = [
+  "<!DOCTYPE html>",
+  '<html lang="en">',
+  "<head>",
+  '    <meta charset="UTF-8">',
+  '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+  "    <title>Hello World App</title>",
+  "</head>",
+  "<body>",
+  "    <h1>Hello World</h1>",
+  "</body>",
+  "</html>",
+  "",
+].join("\n");
+
+async function createFixtureWorkspace(): Promise<string> {
+  const workspace =
+    await fs.mkdtemp(
+      path.join(
+        os.tmpdir(),
+        "static-server-"
+      )
+    );
+
+  await fs.writeFile(
+    path.join(
+      workspace,
+      "index.html"
+    ),
+    FIXTURE_HTML,
+    "utf8"
+  );
+
+  return workspace;
+}
 
 describe(
   "StaticServer",
@@ -11,7 +55,7 @@ describe(
       "serves the workspace index.html",
       async () => {
         const workspace =
-          "D:\\project\\web-coding-agent\\workspaces\\pipeline-e2e-20260923-04";
+          await createFixtureWorkspace();
 
         const server =
           createStaticServer({
@@ -45,6 +89,14 @@ describe(
           );
         } finally {
           await server.stop();
+
+          await fs.rm(
+            workspace,
+            {
+              recursive: true,
+              force: true,
+            }
+          );
         }
       }
     );
